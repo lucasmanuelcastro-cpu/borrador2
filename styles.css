@@ -1,0 +1,161 @@
+/* =========================
+   RESET BASE
+========================= */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+body {
+  background: #f3f4f6;
+  padding: 24px;
+}
+
+/* =========================
+   CONTENEDOR PRINCIPAL
+========================= */
+
+.app-container {
+  max-width: 1400px;
+  margin: auto;
+  display: grid;
+  gap: 24px;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.main-header h1 {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+/* =========================
+   CARDS
+========================= */
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 20px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.card h2 {
+  font-size: 20px;
+  margin-bottom: 12px;
+}
+
+.card h3 {
+  font-size: 16px;
+  margin-bottom: 10px;
+  margin-top: 15px;
+}
+
+/* =========================
+   GRID USUARIOS
+========================= */
+
+.grid-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.user-card {
+  transition: transform 0.2s ease;
+}
+
+.user-card:hover {
+  transform: scale(1.05);
+}
+
+/* =========================
+   FLEX
+========================= */
+
+.flex {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.space-between {
+  justify-content: space-between;
+}
+
+/* =========================
+   INPUTS
+========================= */
+
+input,
+select {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  min-width: 100px;
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: black;
+}
+
+/* =========================
+   BOTONES
+========================= */
+
+button {
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: none;
+  background: black;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+button.danger {
+  background: crimson;
+}
+
+/* =========================
+   HISTORIAL / CLIENTES
+========================= */
+
+.history-card,
+.client-card {
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  border-radius: 14px;
+  margin-top: 10px;
+}
+
+.big-number {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 900px) {
+  .grid-section {
+    grid-template-columns: 1fr;
+  }
+  .panel-3col {
+    grid-template-columns: 1fr !important;
+  }
+}

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Profeta - Control de Stock y Ventas</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Estilos rápidos para asegurar que las columnas funcionen */
+        :root {
+            --primary: #3b82f6;
+            --success: #059669;
+            --danger: #ef4444;
+            --bg: #f3f4f6;
+        }
+        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; padding: 20px; }
+        .app-container { max-width: 1000px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 30px; }
+        
+        .card-section { margin-bottom: 20px; }
+        .card { background: white; padding: 20px; border-radius: 12px; shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        
+        .flex { display: flex; gap: 10px; align-items: center; }
+        .space-between { justify-content: space-between; }
+        .center { justify-content: center; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        
+        button { cursor: pointer; border: none; padding: 10px 20px; border-radius: 6px; color: white; font-weight: bold; background: var(--primary); transition: opacity 0.2s; }
+        button:hover { opacity: 0.9; }
+        button.danger { background: var(--danger); }
+        
+        input, select { padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+        
+        .big-number { font-size: 2rem; font-weight: bold; margin: 10px 0; }
+        hr { border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0; }
+        
+        /* Estilos para dispositivos móviles */
+        @media (max-width: 600px) {
+            .grid-2 { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1><img src="EP CARA.png" alt="El Profeta" style="height:1em; vertical-align:middle;"> El Profeta</h1>
+            <p>Sistema Integral de Gestión de Stock</p>
+        </header>
+
+        <div id="aviso-sync" style="display:none;"></div>
+        <section id="stock-general-section" class="card-section"></section>
+
+        <section id="ventas-general-section" class="card-section"></section>
+
+        <section id="clientes-section" class="card-section"></section>
+
+        <section id="transferencia-section" class="card-section"></section>
+
+        <h2 style="text-align: center;">Usuarios</h2>
+        <section id="usuarios-section" class="card-section flex center"></section>
+
+        <div id="panel-usuario-container"></div>
+
+        <button id="btn-ver-clientes" style="margin-top:10px;">Ver todos los clientes</button>
+        <div id="lista-clientes" style="margin-top:10px;"></div>
+
+    </div>
+
+    
+    <script src="logic.js"></script>
+    <script src="ui.js"></script>
+   
+
+    <!-- 🤖 Asistente IA -->
+    <script src="claude-assistant.js"></script>
+
+<script>
+(function() {
+  const URL_CLIENTES = 'https://script.google.com/macros/s/AKfycbzMd76MQpwnWeOluDo4SEX4rBAC4skskmFCgr73WCh2P33Mnh6OUUoBseTEJyGtRwkxtA/exec?accion=clientesTodos';
+  let clientesYaCargados = false;
+
+  document.getElementById('btn-ver-clientes').addEventListener('click', function() {
+    const lista = document.getElementById('lista-clientes');
+    
+    if (clientesYaCargados) {
+      lista.style.display = lista.style.display === 'none' ? 'block' : 'none';
+      return;
+    }
+    
+    lista.innerHTML = '<div style="color: #666;">Cargando clientes...</div>';
+    lista.style.display = 'block';
+    
+    fetch(URL_CLIENTES)
+     .then(res => res.json())
+     .then(data => {
+        const clientes = data.clientesTodos.filter(c => c.nombre!== "Nombre / IG / Apodo");
+        
+        if (clientes.length === 0) {
+          lista.innerHTML = '<div style="color: #999;">No hay clientes</div>';
+          return;
+        }
+        
+        lista.innerHTML = `
+          <div style="border: 1px solid #ddd; border-radius: 5px; padding: 10px; background: #f9f9f9; max-height: 300px; overflow-y: auto;">
+            <b>Total: ${clientes.length} clientes</b><br><br>
+            ${clientes.map((c, i) => `${i + 1}. ${c.nombre}`).join('<br>')}
+          </div>
+        `;
+        
+        clientesYaCargados = true;
+      })
+     .catch(err => {
+        lista.innerHTML = '<div style="color: red;">❌ Error al cargar clientes</div>';
+        console.error(err);
+      });
+  });
+})();
+</script>
+    
+    
+</body>
+</html>
