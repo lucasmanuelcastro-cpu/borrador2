@@ -260,6 +260,7 @@ function registrarPagoCliente(index, metodo, porcentaje) {
       cliente.pagado += monto;
       if (!cliente.pagos) cliente.pagos = [];
       cliente.pagos.push({ monto, metodo, fecha: new Date().toLocaleString('es-AR') });
+      enviarPagoAlSheet(cliente.nombre, monto, metodo);
       alert(`Cobrado $${monto.toLocaleString()} de ${cliente.nombre}`);
       render();
     }
@@ -277,9 +278,31 @@ function registrarPagoManual(index) {
   cliente.pagado += monto;
   if (!cliente.pagos) cliente.pagos = [];
   cliente.pagos.push({ monto, metodo, fecha: new Date().toLocaleString('es-AR') });
+  enviarPagoAlSheet(cliente.nombre, monto, metodo);
   alert(`Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodo})`);
   inputEl.value = '';
   render();
+}
+
+async function enviarPagoAlSheet(nombreCliente, monto, metodo) {
+  try {
+    const payload = {
+      accion: "registrarPago",
+      cliente: nombreCliente,
+      monto: monto,
+      metodo: metodo,
+      fecha: new Date().toLocaleString('es-AR')
+    };
+    await fetch(URL_SCRIPT, {
+      method: "POST",
+      body: JSON.stringify(payload),
+      headers: { "Content-Type": "text/plain" },
+      mode: "cors"
+    });
+    console.log("✅ Pago enviado al Sheet:", nombreCliente, monto, metodo);
+  } catch(err) {
+    console.error("❌ Error enviando pago al Sheet:", err);
+  }
 }
 
 function registrarCargaStock(usuario, estilo, cantidad, tipo) {
