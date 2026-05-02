@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyXNXCkF8LSv9DyI0frTk0bnqI6v6hq2qJl8DM09KU4bkCOiUg-FJguo431Hs0wAY6S_w/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz_FVSfmBUPp7AI4icpVT4GjaA9n5e2amaNdMy4c55VgteVv1miJhTJ27akT3Tl1jFGCw/exec";
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
@@ -28,7 +28,7 @@ function registrarVentaLocal() {
     totalLatas: preview.totalLatas,
     costo: preview.costoTotal,
     ganancia: totalVenta - preview.costoTotal,
-    metodoPago: "efectivo",
+    metodoPago: state.metodoPago || "efectivo",
     fecha: new Date().toLocaleDateString("es-AR"),
     vendedor: state.usuarioActivo,
     esCobro: false,
@@ -253,7 +253,8 @@ async function cargarDatosDesdeSheet() {
       // 3. SINCRONIZAR CLIENTES/DEUDORES
       if (datosCloud.clientes && Array.isArray(datosCloud.clientes) && datosCloud.clientes.length > 0) {
         datosCloud.clientes.forEach(clienteCloud => {
-          const idx = prev.clientesGlobales.findIndex(c => c.nombre.toLowerCase() === clienteCloud.nombre.toLowerCase());
+          if (!clienteCloud.nombre || typeof clienteCloud.nombre !== 'string') return;
+          const idx = prev.clientesGlobales.findIndex(c => c.nombre && c.nombre.toLowerCase() === clienteCloud.nombre.toLowerCase());
           if (idx!== -1) {
             prev.clientesGlobales[idx].deuda = clienteCloud.deuda;
             prev.clientesGlobales[idx].saldo = clienteCloud.saldo;
