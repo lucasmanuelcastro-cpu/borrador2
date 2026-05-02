@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz_FVSfmBUPp7AI4icpVT4GjaA9n5e2amaNdMy4c55VgteVv1miJhTJ27akT3Tl1jFGCw/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzzDgV3VX-gez74bhxozuyyM9WQJqXss4KzSedhacEc2TCRjQ8GbYDDDWwL-WGfYEXX7A/exec";
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
