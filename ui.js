@@ -512,7 +512,6 @@ function renderVentasGeneral() {
               </div>
               <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151;">
                 <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
-                <span style="background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'}; padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600;">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
                 <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
                 <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
               </div>
@@ -734,7 +733,25 @@ function renderPanelUsuario() {
             ${preview.gananciaBruta > 0? `<div style="margin-top:6px; font-size:0.8em; color:#78350f; text-align:right;">Ganancia bruta: $${preview.gananciaBruta.toLocaleString()}</div>` : ''}
           </div>
 
-          <button id="btn-registrar" style="width:100%; margin-top:10px; background:#1e40af;">
+          <div style="display:flex; gap:8px; margin-top:10px;">
+            <button
+              onclick="setState(p => { p.metodoPago = 'efectivo'; return p; })"
+              style="flex:1; padding:8px 4px; border-radius:8px; font-size:0.85em; font-weight:bold; cursor:pointer;
+                border: 2px solid ${state.metodoPago !== 'transferencia' ? '#059669' : '#334155'};
+                background: ${state.metodoPago !== 'transferencia' ? '#059669' : '#0f172a'};
+                color: ${state.metodoPago !== 'transferencia' ? 'white' : '#64748b'};">
+              💵 Efectivo
+            </button>
+            <button
+              onclick="setState(p => { p.metodoPago = 'transferencia'; return p; })"
+              style="flex:1; padding:8px 4px; border-radius:8px; font-size:0.85em; font-weight:bold; cursor:pointer;
+                border: 2px solid ${state.metodoPago === 'transferencia' ? '#2563eb' : '#334155'};
+                background: ${state.metodoPago === 'transferencia' ? '#2563eb' : '#0f172a'};
+                color: ${state.metodoPago === 'transferencia' ? 'white' : '#64748b'};">
+              🏦 Transferencia
+            </button>
+          </div>
+          <button id="btn-registrar" style="width:100%; margin-top:8px; background:#1e40af;">
             ✅ Registrar Venta
           </button>
         </div>
