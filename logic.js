@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzzDgV3VX-gez74bhxozuyyM9WQJqXss4KzSedhacEc2TCRjQ8GbYDDDWwL-WGfYEXX7A/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz_FVSfmBUPp7AI4icpVT4GjaA9n5e2amaNdMy4c55VgteVv1miJhTJ27akT3Tl1jFGCw/exec";
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
@@ -128,20 +128,7 @@ async function cargarClientesHistoricos() {
   }
 }
 
-function registrarPagoCliente(index, metodo = "efectivo") {
-  const monto = prompt(`¿Cuánto pagó ${state.clientesGlobales[index].nombre}?`);
-  if (!monto) return;
-  const montoNum = Number(monto);
-  const fecha = new Date().toLocaleDateString("es-AR");
-
-  setState((prev) => {
-    const c = prev.clientesGlobales[index];
-    c.pagado += montoNum;
-    if (!c.pagos) c.pagos = [];
-    c.pagos.push({ monto: montoNum, metodo, fecha });
-    return prev;
-  });
-}
+// registrarPagoCliente manejado en ui.js
 
 function borrarHistorialUsuario() {
   if (!state.usuarioActivo) return;
