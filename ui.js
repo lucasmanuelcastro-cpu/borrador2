@@ -512,6 +512,7 @@ function renderVentasGeneral() {
               </div>
               <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151;">
                 <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
+                <span style="background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'}; padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600;">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
                 <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
                 <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
               </div>
