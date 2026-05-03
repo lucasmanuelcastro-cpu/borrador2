@@ -28,7 +28,7 @@ function registrarVentaLocal() {
     totalLatas: preview.totalLatas,
     costo: preview.costoTotal,
     ganancia: totalVenta - preview.costoTotal,
-    metodoPago: state.metodoPago || "efectivo",
+    metodoPago: "",
     fecha: new Date().toLocaleDateString("es-AR"),
     vendedor: state.usuarioActivo,
     esCobro: false,
