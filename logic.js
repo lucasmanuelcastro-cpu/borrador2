@@ -43,11 +43,13 @@ function registrarVentaLocal() {
     usuario.ventas.push({
       cliente: ventaDatos.cliente,
       estilos: ventaDatos.estilos,
+      tipoLata: prev.tipoLata || 'conEtiqueta',
       totalCobrado: totalVenta,
       paraProfeta: preview.paraProfeta,
       comision: preview.comision,
       metodoPago: ventaDatos.metodoPago,
       fecha: ventaDatos.fecha,
+      vendedor: prev.usuarioActivo,
     });
 
     if (prev.clienteNombre && prev.clienteNombre.trim() !== "") {
