@@ -313,19 +313,67 @@ function registrarPagoCliente(index, metodo, porcentaje) {
 }
 
 function registrarPagoManual(index) {
+  console.log("🔵 registrarPagoManual llamado para índice:", index);
+  
   const inputEl = document.getElementById(`pago-manual-${index}`);
   const metodoEl = document.getElementById(`pago-metodo-${index}`);
-  if (!inputEl || !metodoEl) return;
+  
+  if (!inputEl || !metodoEl) {
+    console.error("❌ No se encontraron los elementos del DOM");
+    return;
+  }
+  
   const monto = Number(inputEl.value);
-  if (!monto || monto <= 0) { alert('Ingresá un monto válido'); return; }
   const metodo = metodoEl.value;
+  
+  if (!monto || monto <= 0) {
+    alert("⚠️ Ingresá un monto válido mayor a 0");
+    return;
+  }
+  
   const cliente = state.clientesGlobales[index];
-  cliente.pagado += monto;
+  if (!cliente) {
+    console.error("❌ Cliente no encontrado");
+    return;
+  }
+  
+  const deudaActual = cliente.deuda - cliente.pagado;
+  
+  if (monto > deudaActual) {
+    alert(`⚠️ El monto ($${monto.toLocaleString()}) supera la deuda ($${deudaActual.toLocaleString()}). Se cobrará solo la deuda.`);
+  }
+  
+  const montoACobrar = Math.min(monto, deudaActual);
+  
+  console.log("💰 Monto a cobrar manual:", montoACobrar);
+  
+  // 1. Actualizar estado local
+  cliente.pagado += montoACobrar;
   if (!cliente.pagos) cliente.pagos = [];
-  cliente.pagos.push({ monto, metodo, fecha: new Date().toLocaleString('es-AR') });
-  enviarPagoAlSheet(cliente.nombre, monto, metodo);
-  alert(`Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodo})`);
+  cliente.pagos.push({
+    monto: montoACobrar,
+    metodo: metodo,
+    fecha: new Date().toLocaleString('es-AR')
+  });
+  
+  // 2. Actualizar método de pago en ventas
+  Object.values(state.usuarios).forEach(usuario => {
+    usuario.ventas.forEach(venta => {
+      if (venta.cliente === cliente.nombre && !venta.metodoPagoRegistrado) {
+        venta.metodoPago = metodo;
+        venta.metodoPagoRegistrado = true;
+      }
+    });
+  });
+  
+  // 3. Enviar al Sheet
+  enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
+  
+  // 4. Limpiar input y mostrar mensaje
   inputEl.value = '';
+  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
+  alert(`✅ Cobrado $${montoACobrar.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
+  
   render();
 }
 
