@@ -260,7 +260,7 @@ async function cargarDatosDesdeSheet() {
 console.log("📦 Datos completos del Sheet:", datosCloud);
 console.log("📦 StockGeneral recibido:", datosCloud.stockGeneral);
       return prev;
-    });
+    
 
     if (datosCloud.clientesHistoricos) {
       clientesHistoricos = datosCloud.clientesHistoricos;
