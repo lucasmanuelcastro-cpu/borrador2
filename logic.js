@@ -43,13 +43,11 @@ function registrarVentaLocal() {
     usuario.ventas.push({
       cliente: ventaDatos.cliente,
       estilos: ventaDatos.estilos,
-      tipoLata: prev.tipoLata || 'conEtiqueta',
       totalCobrado: totalVenta,
       paraProfeta: preview.paraProfeta,
       comision: preview.comision,
       metodoPago: ventaDatos.metodoPago,
       fecha: ventaDatos.fecha,
-      vendedor: prev.usuarioActivo,
     });
 
     if (prev.clienteNombre && prev.clienteNombre.trim() !== "") {
@@ -245,8 +243,9 @@ async function cargarDatosDesdeSheet() {
           if (!clienteCloud.nombre || typeof clienteCloud.nombre !== 'string') return;
           const idx = prev.clientesGlobales.findIndex(c => c.nombre && c.nombre.toLowerCase() === clienteCloud.nombre.toLowerCase());
           if (idx!== -1) {
-            prev.clientesGlobales[idx].deuda = clienteCloud.deuda;
-            prev.clientesGlobales[idx].saldo = clienteCloud.saldo;
+            prev.clientesGlobales[idx].deuda  = clienteCloud.deuda;
+            prev.clientesGlobales[idx].pagado = clienteCloud.pagado || 0;
+            prev.clientesGlobales[idx].saldo  = clienteCloud.saldo;
           } else {
             prev.clientesGlobales.push({
               nombre: clienteCloud.nombre,
