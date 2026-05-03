@@ -120,7 +120,7 @@ function registrarVentaLocal() {
     estilos: {...state.ventaActual},
     alquilerBarril: state.alquilerBarril,
     tipoLata: state.tipoLata,
-    metodoPago: state.metodoPago,
+     metodoPago: "",  // ✅ Vacío
     totalCobrado: Number(state.totalCobradoInput) || 0,
     costoTotal: preview.costoTotal,
     comision: preview.comision,
