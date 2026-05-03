@@ -290,6 +290,9 @@ function registrarPagoCliente(index, metodo, porcentaje) {
   
   // 2. Enviar pago al Sheet (esto actualiza Estado, Cobrado Real y Método Pago)
   await enviarPagoAlSheet(cliente.nombre, monto, metodo);
+
+ // ✅ NUEVO: Recargar datos desde el Sheet para sincronizar
+  await cargarDatosDesdeSheet();
   
   // 3. Recargar datos desde el Sheet para sincronizar
   await cargarDatosDesdeSheet();
