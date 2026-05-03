@@ -252,19 +252,64 @@ async function borrarVentaIndividual(index) {
 }
 
 function registrarPagoCliente(index, metodo, porcentaje) {
+  console.log("🔵 registrarPagoCliente llamado:", { index, metodo, porcentaje });
+  
   const cliente = state.clientesGlobales[index];
-  const deuda = cliente.deuda - cliente.pagado;
-  if (deuda > 0) {
-    const monto = porcentaje === '100'? deuda : porcentaje === '50'? deuda * 0.5 : 0;
-    if (monto > 0) {
-      cliente.pagado += monto;
-      if (!cliente.pagos) cliente.pagos = [];
-      cliente.pagos.push({ monto, metodo, fecha: new Date().toLocaleString('es-AR') });
-      enviarPagoAlSheet(cliente.nombre, monto, metodo);
-      alert(`Cobrado $${monto.toLocaleString()} de ${cliente.nombre}`);
-      render();
-    }
+  if (!cliente) {
+    console.error("❌ Cliente no encontrado en índice:", index);
+    return;
   }
+  
+  const deudaActual = cliente.deuda - cliente.pagado;
+  console.log("💰 Deuda actual:", deudaActual);
+  
+  if (deudaActual <= 0) {
+    alert(`✅ ${cliente.nombre} no tiene deuda pendiente.`);
+    return;
+  }
+  
+  // Calcular monto a cobrar
+  let monto = 0;
+  if (porcentaje === '100') {
+    monto = deudaActual;
+  } else if (porcentaje === '50') {
+    monto = deudaActual * 0.5;
+  }
+  
+  if (monto <= 0) return;
+  
+  console.log("💵 Monto a cobrar:", monto);
+  
+  // 1. Actualizar estado local del cliente
+  cliente.pagado += monto;
+  if (!cliente.pagos) cliente.pagos = [];
+  cliente.pagos.push({
+    monto: monto,
+    metodo: metodo,
+    fecha: new Date().toLocaleString('es-AR')
+  });
+  
+  console.log("✅ Cliente actualizado - Pagado total:", cliente.pagado);
+  
+  // 2. Actualizar el método de pago en las ventas de este cliente
+  Object.values(state.usuarios).forEach(usuario => {
+    usuario.ventas.forEach(venta => {
+      if (venta.cliente === cliente.nombre && !venta.metodoPagoRegistrado) {
+        venta.metodoPago = metodo;
+        venta.metodoPagoRegistrado = true;
+        console.log("📝 Método de pago actualizado en venta:", venta);
+      }
+    });
+  });
+  
+  // 3. Enviar pago al Sheet
+  enviarPagoAlSheet(cliente.nombre, monto, metodo);
+  
+  // 4. Mostrar mensaje y renderizar
+  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
+  alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
+  
+  render();
 }
 
 function registrarPagoManual(index) {
