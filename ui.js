@@ -575,8 +575,7 @@ function renderVentasGeneral() {
   const dineroTransferencia = getTotalVentasPorMetodo("transferencia");
   const dineroTotal = getTotalVentasDinero();
   const totalProfeta = getGananciaTotalProfeta();
-  const todasLasVentas = getVentasGenerales();
-
+  const todasLasVentas = getVentasGenerales().filter(v => v.metodoPago && v.metodoPago !== "");
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
       <div class="card" style="border-left: 4px solid #059669;">
@@ -605,9 +604,9 @@ function renderVentasGeneral() {
     <div class="card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
       <h2>📋 Historial Global (${todasLasVentas.length} ventas)</h2>
       <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
-        ${todasLasVentas.length === 0
-   ? '<p style="color:gray;">No hay ventas registradas aún.</p>'
-          : [...todasLasVentas].reverse().map(v => {
+       ${todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "").length === 0
+   ? '<p style="color:gray;">No hay ventas cobradas aún.</p>'
+          : [...todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "")].reverse().map(v => 
               const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
                 state.usuarios[u].ventas.some(vv => vv === v)
               ) || '—';
