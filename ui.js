@@ -268,7 +268,6 @@ function registrarPagoCliente(index, metodo, porcentaje) {
     return;
   }
   
-  // Calcular monto a cobrar
   let monto = 0;
   if (porcentaje === '100') {
     monto = deudaActual;
@@ -289,23 +288,12 @@ function registrarPagoCliente(index, metodo, porcentaje) {
     fecha: new Date().toLocaleString('es-AR')
   });
   
-  console.log("✅ Cliente actualizado - Pagado total:", cliente.pagado);
+  // 2. Enviar pago al Sheet (esto actualiza Estado, Cobrado Real y Método Pago)
+  await enviarPagoAlSheet(cliente.nombre, monto, metodo);
   
-  // 2. Actualizar el método de pago en las ventas de este cliente
-  Object.values(state.usuarios).forEach(usuario => {
-    usuario.ventas.forEach(venta => {
-      if (venta.cliente === cliente.nombre && !venta.metodoPagoRegistrado) {
-        venta.metodoPago = metodo;
-        venta.metodoPagoRegistrado = true;
-        console.log("📝 Método de pago actualizado en venta:", venta);
-      }
-    });
-  });
+  // 3. Recargar datos desde el Sheet para sincronizar
+  await cargarDatosDesdeSheet();
   
-  // 3. Enviar pago al Sheet
-  enviarPagoAlSheet(cliente.nombre, monto, metodo);
-  
-  // 4. Mostrar mensaje y renderizar
   const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
   alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
   
@@ -386,15 +374,18 @@ async function enviarPagoAlSheet(nombreCliente, monto, metodo) {
       metodo: metodo,
       fecha: new Date().toLocaleString('es-AR')
     };
-    await fetch(URL_SCRIPT, {
+    const resp = await fetch(URL_SCRIPT, {
       method: "POST",
       body: JSON.stringify(payload),
       headers: { "Content-Type": "text/plain" },
       mode: "cors"
     });
-    console.log("✅ Pago enviado al Sheet:", nombreCliente, monto, metodo);
+    const texto = await resp.text();
+    console.log("✅ Pago enviado al Sheet:", nombreCliente, monto, metodo, "Respuesta:", texto);
+    return texto;
   } catch(err) {
     console.error("❌ Error enviando pago al Sheet:", err);
+    throw err;
   }
 }
 
