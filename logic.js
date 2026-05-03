@@ -19,21 +19,21 @@ function registrarVentaLocal() {
   const alquilerBarril = state.alquilerBarril || "";
 
   const ventaDatos = {
-  cliente: state.clienteNombre || "Consumidor Final",
-  estilos: { ...state.ventaActual },
-  alquilerBarril: alquilerBarril,
-  totalCobrado: totalVenta,
-  paraProfeta: preview.paraProfeta,
-  comision: preview.comision,
-  totalLatas: preview.totalLatas,
-  costo: preview.costoTotal,
-  ganancia: totalVenta - preview.costoTotal,
-  metodoPago: state.metodoPago || "efectivo",  // ✅ ESTA LÍNEA
-  fecha: new Date().toLocaleDateString("es-AR"),
-  vendedor: state.usuarioActivo,
-  tipoLata: state.tipoLata || "conEtiqueta",
-  esCobro: false,
-};
+    cliente: state.clienteNombre || "Consumidor Final",
+    estilos: { ...state.ventaActual },
+    alquilerBarril: alquilerBarril,
+    totalCobrado: totalVenta,
+    paraProfeta: preview.paraProfeta,
+    comision: preview.comision,
+    totalLatas: preview.totalLatas,
+    costo: preview.costoTotal,
+    ganancia: totalVenta - preview.costoTotal,
+    metodoPago: state.metodoPago || "efectivo",
+    fecha: new Date().toLocaleDateString("es-AR"),
+    vendedor: state.usuarioActivo,
+    esCobro: false,
+  };
+
   ventasPendientes.push(ventaDatos);
   localStorage.setItem("ventasPendientes", JSON.stringify(ventasPendientes));
   console.log("📝 Venta registrada. Pendientes:", ventasPendientes.length);
@@ -41,15 +41,16 @@ function registrarVentaLocal() {
   setState((prev) => {
     const usuario = prev.usuarios[prev.usuarioActivo];
     usuario.ventas.push({
-  cliente: ventaDatos.cliente,
-  estilos: ventaDatos.estilos,
-  totalCobrado: totalVenta,
-  paraProfeta: preview.paraProfeta,
-  comision: preview.comision,
-  metodoPago: ventaDatos.metodoPago,  // ✅ AGREGAR ESTA LÍNEA
-  fecha: ventaDatos.fecha,
-  tipoLata: ventaDatos.tipoLata,
-});
+      cliente: ventaDatos.cliente,
+      estilos: ventaDatos.estilos,
+      tipoLata: prev.tipoLata || 'conEtiqueta',
+      totalCobrado: totalVenta,
+      paraProfeta: preview.paraProfeta,
+      comision: preview.comision,
+      metodoPago: ventaDatos.metodoPago,
+      fecha: ventaDatos.fecha,
+      vendedor: prev.usuarioActivo,
+    });
 
     if (prev.clienteNombre && prev.clienteNombre.trim() !== "") {
       const idx = prev.clientesGlobales.findIndex(c => c.nombre.toLowerCase() === prev.clienteNombre.toLowerCase());
@@ -244,9 +245,8 @@ async function cargarDatosDesdeSheet() {
           if (!clienteCloud.nombre || typeof clienteCloud.nombre !== 'string') return;
           const idx = prev.clientesGlobales.findIndex(c => c.nombre && c.nombre.toLowerCase() === clienteCloud.nombre.toLowerCase());
           if (idx!== -1) {
-            prev.clientesGlobales[idx].deuda  = clienteCloud.deuda;
-            prev.clientesGlobales[idx].pagado = clienteCloud.pagado || 0;
-            prev.clientesGlobales[idx].saldo  = clienteCloud.saldo;
+            prev.clientesGlobales[idx].deuda = clienteCloud.deuda;
+            prev.clientesGlobales[idx].saldo = clienteCloud.saldo;
           } else {
             prev.clientesGlobales.push({
               nombre: clienteCloud.nombre,
