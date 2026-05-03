@@ -256,7 +256,8 @@ async function cargarDatosDesdeSheet() {
           }
         });
       }
-
+console.log("📦 Datos completos del Sheet:", datosCloud);
+console.log("📦 StockGeneral recibido:", datosCloud.stockGeneral);
       return prev;
     });
 
