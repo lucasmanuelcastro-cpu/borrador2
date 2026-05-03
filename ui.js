@@ -251,7 +251,7 @@ async function borrarVentaIndividual(index) {
   }
 }
 
-function registrarPagoCliente(index, metodo, porcentaje) {
+async function registrarPagoCliente(index, metodo, porcentaje) {
   console.log("🔵 registrarPagoCliente llamado:", { index, metodo, porcentaje });
   
   const cliente = state.clientesGlobales[index];
