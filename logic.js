@@ -186,10 +186,10 @@ async function cargarDatosDesdeSheet() {
     const texto = await respuesta.text();
     const datosCloud = JSON.parse(texto.trim().replace(/^\uFEFF/, ""));
     if (datosCloud.error) throw new Error(datosCloud.error);
-    if (!datosCloud.usuarios || typeof datosCloud.usuarios!== "object") return;
+    if (!datosCloud.usuarios || typeof datosCloud.usuarios !== "object") return;
 
     setState((prev) => {
-      // 1. POPULARIDAD desde el Sheet (fórmulas propias del Sheet)
+      // 1. POPULARIDAD
       if (datosCloud.popularidad) {
         prev.popularidadSheet = datosCloud.popularidad;
       }
@@ -207,44 +207,45 @@ async function cargarDatosDesdeSheet() {
         };
       }
 
-      // 2. SINCRONIZAR STOCK POR USUARIO - AHORA CON LATAS SIN ETIQUETA
+      // 3. SINCRONIZAR STOCK POR USUARIO
       Object.entries(datosCloud.usuarios).forEach(([nombre, datos]) => {
         if (prev.usuarios[nombre]) {
           if (datos.stock) {
             prev.usuarios[nombre].stock = {
-              "BLONDE":      Number(datos.stock["BLONDE"])      || 0,
-              "IRISH RED":   Number(datos.stock["IRISH RED"])   || 0,
-              "STOUT":       Number(datos.stock["STOUT"])       || 0,
+              "BLONDE": Number(datos.stock["BLONDE"]) || 0,
+              "IRISH RED": Number(datos.stock["IRISH RED"]) || 0,
+              "STOUT": Number(datos.stock["STOUT"]) || 0,
               "SESSION IPA": Number(datos.stock["SESSION IPA"]) || 0,
-              "RED IPA":     Number(datos.stock["RED IPA"])     || 0,
-              "HONEY":       Number(datos.stock["HONEY"])       || 0,
+              "RED IPA": Number(datos.stock["RED IPA"]) || 0,
+              "HONEY": Number(datos.stock["HONEY"]) || 0,
             };
           }
-          // ✅ Sincronizar stock SIN ETIQUETA desde el Sheet
           if (datos.stockSinEtiqueta) {
             prev.usuarios[nombre].stockSinEtiqueta = {
-              "BLONDE":      Number(datos.stockSinEtiqueta["BLONDE"])      || 0,
-              "IRISH RED":   Number(datos.stockSinEtiqueta["IRISH RED"])   || 0,
-              "STOUT":       Number(datos.stockSinEtiqueta["STOUT"])       || 0,
+              "BLONDE": Number(datos.stockSinEtiqueta["BLONDE"]) || 0,
+              "IRISH RED": Number(datos.stockSinEtiqueta["IRISH RED"]) || 0,
+              "STOUT": Number(datos.stockSinEtiqueta["STOUT"]) || 0,
               "SESSION IPA": Number(datos.stockSinEtiqueta["SESSION IPA"]) || 0,
-              "RED IPA":     Number(datos.stockSinEtiqueta["RED IPA"])     || 0,
-              "HONEY":       Number(datos.stockSinEtiqueta["HONEY"])       || 0,
+              "RED IPA": Number(datos.stockSinEtiqueta["RED IPA"]) || 0,
+              "HONEY": Number(datos.stockSinEtiqueta["HONEY"]) || 0,
             };
           }
           if (datos.ventas && Array.isArray(datos.ventas) && datos.ventas.length > 0) {
-  prev.usuarios[nombre].ventas = datos.ventas.map(venta => ({
-    ...venta,
-    estado: venta.estado || "PENDIENTE",
-    cobradoReal: venta.cobradoReal || 0
-  }));
-}
+            prev.usuarios[nombre].ventas = datos.ventas.map(venta => ({
+              ...venta,
+              estado: venta.estado || "PENDIENTE",
+              cobradoReal: venta.cobradoReal || 0
+            }));
+          }
+        }
+      });
 
-      // 3. SINCRONIZAR CLIENTES/DEUDORES
+      // 4. SINCRONIZAR CLIENTES
       if (datosCloud.clientes && Array.isArray(datosCloud.clientes) && datosCloud.clientes.length > 0) {
         datosCloud.clientes.forEach(clienteCloud => {
           if (!clienteCloud.nombre || typeof clienteCloud.nombre !== 'string') return;
           const idx = prev.clientesGlobales.findIndex(c => c.nombre && c.nombre.toLowerCase() === clienteCloud.nombre.toLowerCase());
-          if (idx!== -1) {
+          if (idx !== -1) {
             prev.clientesGlobales[idx].deuda = clienteCloud.deuda;
             prev.clientesGlobales[idx].saldo = clienteCloud.saldo;
           } else {
@@ -257,10 +258,12 @@ async function cargarDatosDesdeSheet() {
           }
         });
       }
-console.log("📦 Datos completos del Sheet:", datosCloud);
-console.log("📦 StockGeneral recibido:", datosCloud.stockGeneral);
+
+      console.log("📦 Datos completos del Sheet:", datosCloud);
+      console.log("📦 StockGeneral recibido:", datosCloud.stockGeneral);
+      
       return prev;
-    
+    }); // ✅ Cierra setState
 
     if (datosCloud.clientesHistoricos) {
       clientesHistoricos = datosCloud.clientesHistoricos;
