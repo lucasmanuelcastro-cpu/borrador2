@@ -15,7 +15,7 @@ let state = {
   },
   clientesGlobales: [],
   stockGeneral: {},
-  popularidadSheet: {}, // ← porcentajes y cantidades leídos del Sheet
+  popularidadSheet: {},
   usuarioActivo: "Julian",
   ventaActual: { BLONDE: "", "IRISH RED": "", STOUT: "", "SESSION IPA": "", "RED IPA": "", HONEY: "" },
   metodoPago: "efectivo",
@@ -120,7 +120,7 @@ function registrarVentaLocal() {
     estilos: {...state.ventaActual},
     alquilerBarril: state.alquilerBarril,
     tipoLata: state.tipoLata,
-     metodoPago: "",  // ✅ Vacío
+    metodoPago: "",
     totalCobrado: Number(state.totalCobradoInput) || 0,
     costoTotal: preview.costoTotal,
     comision: preview.comision,
@@ -143,7 +143,7 @@ function registrarVentaLocal() {
     }
   });
 
-  if (state.clienteNombre && state.clienteNombre!== 'Consumidor Final') {
+  if (state.clienteNombre && state.clienteNombre !== 'Consumidor Final') {
     let cliente = state.clientesGlobales.find(c => c.nombre === state.clienteNombre);
     if (!cliente) {
       cliente = { nombre: state.clienteNombre, deuda: 0, pagado: 0, pagos: [] };
@@ -152,7 +152,6 @@ function registrarVentaLocal() {
     cliente.deuda += Number(state.totalCobradoInput) || 0;
   }
 
-  // ✅ Encolar venta para sincronizar con Google Sheets
   const ventaParaSheet = {
     cliente: venta.cliente,
     estilos: venta.estilos,
@@ -205,7 +204,6 @@ async function borrarVentaIndividual(index) {
   const venta = state.usuarios[state.usuarioActivo].ventas[index];
   if (!venta) return;
 
-  // 1. Devolver stock al usuario
   setState(prev => {
     const usuario = prev.usuarios[prev.usuarioActivo];
     Object.entries(venta.estilos || {}).forEach(([estilo, cant]) => {
@@ -219,15 +217,12 @@ async function borrarVentaIndividual(index) {
         }
       }
     });
-    // Borrar la venta del array local
     prev.usuarios[prev.usuarioActivo].ventas.splice(index, 1);
     return prev;
   });
 
-  // 2. Sincronizar stock devuelto al Sheet
   await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
 
-  // 3. Borrar la venta del Sheet
   try {
     const payload = {
       accion: "borrarVenta",
@@ -295,7 +290,6 @@ async function registrarPagoCliente(index, metodo, porcentaje) {
   
   render();
 }
-
 async function registrarPagoManual(index) {
   console.log("🔵 registrarPagoManual llamado para índice:", index);
   
@@ -342,95 +336,6 @@ async function registrarPagoManual(index) {
   await enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
   await cargarDatosDesdeSheet();
   
-  inputEl.value = '';
-  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
-  alert(`✅ Cobrado $${montoACobrar.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
-  
-  render();
-}
-  
-  // 1. Actualizar estado local del cliente
-  cliente.pagado += monto;
-  if (!cliente.pagos) cliente.pagos = [];
-  cliente.pagos.push({
-    monto: monto,
-    metodo: metodo,
-    fecha: new Date().toLocaleString('es-AR')
-  });
-  
-  // 2. Enviar pago al Sheet
-  await enviarPagoAlSheet(cliente.nombre, monto, metodo);
-
-  // 3. Recargar datos desde el Sheet para sincronizar
-  await cargarDatosDesdeSheet();
-  
-  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
-  alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
-  
-  render();
-}
-
-async function registrarPagoManual(index) {
-  console.log("🔵 registrarPagoManual llamado para índice:", index);
-  
-  const inputEl = document.getElementById(`pago-manual-${index}`);
-  const metodoEl = document.getElementById(`pago-metodo-${index}`);
-  
-  if (!inputEl || !metodoEl) {
-    console.error("❌ No se encontraron los elementos del DOM");
-    return;
-  }
-  
-  const monto = Number(inputEl.value);
-  const metodo = metodoEl.value;
-  
-  if (!monto || monto <= 0) {
-    alert("⚠️ Ingresá un monto válido mayor a 0");
-    return;
-  }
-  
-  const cliente = state.clientesGlobales[index];
-  if (!cliente) {
-    console.error("❌ Cliente no encontrado");
-    return;
-  }
-  
-  const deudaActual = cliente.deuda - cliente.pagado;
-  
-  if (monto > deudaActual) {
-    alert(`⚠️ El monto ($${monto.toLocaleString()}) supera la deuda ($${deudaActual.toLocaleString()}). Se cobrará solo la deuda.`);
-  }
-  
-  const montoACobrar = Math.min(monto, deudaActual);
-  
-  console.log("💰 Monto a cobrar manual:", montoACobrar);
-  
-  // 1. Actualizar estado local
-  cliente.pagado += montoACobrar;
-  if (!cliente.pagos) cliente.pagos = [];
-  cliente.pagos.push({
-    monto: montoACobrar,
-    metodo: metodo,
-    fecha: new Date().toLocaleString('es-AR')
-  });
-  
-  // 2. Actualizar método de pago en ventas
-  Object.values(state.usuarios).forEach(usuario => {
-    usuario.ventas.forEach(venta => {
-      if (venta.cliente === cliente.nombre && !venta.metodoPagoRegistrado) {
-        venta.metodoPago = metodo;
-        venta.metodoPagoRegistrado = true;
-      }
-    });
-  });
-  
-  // 3. Enviar al Sheet
-  enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
-
-   // ✅ NUEVO: Recargar datos desde el Sheet para sincronizar
-  await cargarDatosDesdeSheet();
-  
-  // 4. Limpiar input y mostrar mensaje
   inputEl.value = '';
   const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
   alert(`✅ Cobrado $${montoACobrar.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
@@ -500,15 +405,12 @@ function cargarDatos() {
 }
 
 async function guardarEnSheets() {
-  // Tomar las ventas locales pendientes y enviarlas al Sheet con el formato correcto
   const ventas = getVentasGenerales();
   if (ventas.length === 0) {
     alert("No hay ventas para guardar.");
     return;
   }
 
-  // Tomamos solo la última venta (la más reciente aún no enviada)
-  // Las ventas pendientes se manejan vía ventasPendientes en logic.js
   try {
     await guardarVentasPendientesEnSheet();
     alert("✅ Datos guardados en Google Sheets");
@@ -517,11 +419,9 @@ async function guardarEnSheets() {
   }
 }
 
-// ===== INICIALIZACIÓN =====
 document.addEventListener('DOMContentLoaded', async () => {
   cargarDatos();
   render();
-  // Cargar datos en tiempo real desde Google Sheets
   try {
     await cargarDatosDesdeSheet();
     await cargarClientesHistoricos();
@@ -540,7 +440,6 @@ function render() {
   renderPanelUsuario();
 }
 
-// 1. STOCK Y POPULARIDAD
 function renderStockGeneral() {
   const container = document.getElementById("stock-general-section");
   if (!container) return;
@@ -594,7 +493,6 @@ function renderStockGeneral() {
       <div class="card" style="background: #f8fafc; border: 1px solid #e2e8f0;">
         <h2>Popularidad (% Ventas)</h2>
         ${(() => {
-          // Usar datos del Sheet si están disponibles, sino calcular local
           const tieneSheet = Object.keys(state.popularidadSheet || {}).length > 0;
           if (tieneSheet) {
             const entradas = Object.entries(state.popularidadSheet)
@@ -610,7 +508,6 @@ function renderStockGeneral() {
                 <small style="color: #64748b;">Total latas vendidas: <b>${totalLatas}</b></small>
               </div>`;
           }
-          // Fallback local
           if (Object.entries(stats.totalesPorEstilo).length === 0)
             return '<p style="color:gray; font-size: 0.9em;">Esperando primeras ventas...</p>';
           return Object.entries(stats.totalesPorEstilo)
@@ -631,7 +528,6 @@ function renderStockGeneral() {
     </div>`;
 }
 
-// 2. VENTAS GENERALES
 function renderVentasGeneral() {
   const container = document.getElementById("ventas-general-section");
   if (!container) return;
@@ -640,6 +536,7 @@ function renderVentasGeneral() {
   const dineroTotal = getTotalVentasDinero();
   const totalProfeta = getGananciaTotalProfeta();
   const todasLasVentas = getVentasGenerales().filter(v => v.metodoPago && v.metodoPago !== "");
+  
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
       <div class="card" style="border-left: 4px solid #059669;">
@@ -652,6 +549,7 @@ function renderVentasGeneral() {
         <p class="big-number" style="color: #2563eb;">$${dineroTransferencia.toLocaleString()}</p>
         <small>Ventas cobradas por transferencia</small>
       </div>
+    </div>
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
       <div class="card" style="border-left: 4px solid #3b82f6;">
         <h2>💰 Total Ingresado</h2>
@@ -668,56 +566,53 @@ function renderVentasGeneral() {
     <div class="card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
       <h2>📋 Historial Global (${todasLasVentas.length} ventas)</h2>
       <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
-      ${todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "").length === 0
-   ? '<p style="color:gray;">No hay ventas cobradas aún.</p>'
-   : [...todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "")].reverse().map(v => {
-       const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
-         state.usuarios[u].ventas.some(vv => vv === v)
-       ) || '—';
-       return `
-       <div style="border-bottom: 1px solid #f3f4f6; padding: 8px 0; font-size: 0.88em;">
-         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
-           <span><b>👤 ${v.cliente || 'Consumidor Final'}</b>
-             <span style="margin-left:8px; background:#ede9fe; color:#7c3aed; border-radius:6px; padding:1px 7px; font-size:0.85em;">
-               ${vendedor}
-             </span>
-           </span>
-           <small style="color:#64748b;">📅 ${v.fecha || ''}</small>
-         </div>
-         <div style="color:#555; margin: 3px 0;">
-           ${Object.entries(v.estilos || {}).filter(([,c]) => Number(c) > 0).map(([e,c]) => `${c} ${e}`).join(', ') || '—'}
-           <b style="color:#1e40af; margin-left:6px;">(${Object.values(v.estilos || {}).reduce((a,b) => a+(Number(b)||0), 0)} latas)</b>
-           <span style="margin-left:6px; padding:1px 8px; border-radius:10px; font-size:0.82em; font-weight:600; background:${v.tipoLata === 'sinEtiqueta' ? '#dbeafe' : '#fef9c3'}; color:${v.tipoLata === 'sinEtiqueta' ? '#1e40af' : '#92400e'};">${v.tipoLata === 'sinEtiqueta' ? '📦 Sin etiqueta' : '🏷️ Con etiqueta'}</span>
-         </div>
-         <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151; align-items:center;">
-           <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
-           <span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'};">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
-           <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
-           <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
-         </div>
-       </div>`;
-     }).join("")
-   }
+        ${todasLasVentas.length === 0
+          ? '<p style="color:gray;">No hay ventas cobradas aún.</p>'
+          : [...todasLasVentas].reverse().map(v => {
+              const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
+                state.usuarios[u].ventas.some(vv => vv === v)
+              ) || '—';
+              return `
+              <div style="border-bottom: 1px solid #f3f4f6; padding: 8px 0; font-size: 0.88em;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+                  <span><b>👤 ${v.cliente || 'Consumidor Final'}</b>
+                    <span style="margin-left:8px; background:#ede9fe; color:#7c3aed; border-radius:6px; padding:1px 7px; font-size:0.85em;">
+                      ${vendedor}
+                    </span>
+                  </span>
+                  <small style="color:#64748b;">📅 ${v.fecha || ''}</small>
+                </div>
+                <div style="color:#555; margin: 3px 0;">
+                  ${Object.entries(v.estilos || {}).filter(([,c]) => Number(c) > 0).map(([e,c]) => `${c} ${e}`).join(', ') || '—'}
+                  <b style="color:#1e40af; margin-left:6px;">(${Object.values(v.estilos || {}).reduce((a,b) => a+(Number(b)||0), 0)} latas)</b>
+                  <span style="margin-left:6px; padding:1px 8px; border-radius:10px; font-size:0.82em; font-weight:600; background:${v.tipoLata === 'sinEtiqueta' ? '#dbeafe' : '#fef9c3'}; color:${v.tipoLata === 'sinEtiqueta' ? '#1e40af' : '#92400e'};">${v.tipoLata === 'sinEtiqueta' ? '📦 Sin etiqueta' : '🏷️ Con etiqueta'}</span>
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151; align-items:center;">
+                  <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
+                  <span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'};">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
+                  <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
+                  <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
+                </div>
+              </div>`;
+            }).join("")
         }
       </div>
     </div>`;
 }
-
-// 3. CARTERA DE CLIENTES
 function renderClientesGlobales() {
   const container = document.getElementById("clientes-section");
   if (!container) return;
   const deudores = state.clientesGlobales.filter(c => (c.deuda - c.pagado) > 0);
   const deudaTotal = deudores.reduce((acc, c) => acc + (c.deuda - c.pagado), 0);
+  
   container.innerHTML = `
-    
     <div class="card" style="border-left: 5px solid #ef4444;">
       <div class="flex space-between">
         <h2>👥 Cartera de Clientes (Deudores)</h2>
         <b style="color: #ef4444;">Deuda Total: $${deudaTotal.toLocaleString()}</b>
       </div>
       <div style="max-height: 250px; overflow-y: auto; margin-top: 10px;">
-        ${deudores.length === 0? '<p>No hay deudas pendientes</p>' :
+        ${deudores.length === 0 ? '<p>No hay deudas pendientes</p>' :
           deudores.map((c) => {
             const idx = state.clientesGlobales.indexOf(c);
             const deuda = c.deuda - c.pagado;
@@ -747,7 +642,6 @@ function renderClientesGlobales() {
     </div>`;
 }
 
-// 4. PANEL DE USUARIO
 function renderPanelUsuario() {
   const container = document.getElementById("panel-usuario-container");
   if (!container) return;
@@ -756,13 +650,12 @@ function renderPanelUsuario() {
   const preview = calcularPreview();
   const totalLatas = Object.values(state.ventaActual).reduce((a, b) => a + (Number(b) || 0), 0);
   const precioUnitario = state.precioUnitario || "";
-  const totalCobrado = totalLatas > 0 && precioUnitario? totalLatas * Number(precioUnitario) : 0;
+  const totalCobrado = totalLatas > 0 && precioUnitario ? totalLatas * Number(precioUnitario) : 0;
 
   container.innerHTML = `
     <div class="panel-usuario card">
       <h1 style="border-bottom: 2px solid #3b82f6; padding-bottom: 10px;">Panel de ${state.usuarioActivo}</h1>
       <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
-
         <div>
           <h3>📦 Stock Propio</h3>
           <table style="width:100%; border-collapse: collapse; margin-top:10px; background: #f8fafc; border-radius: 8px;">
@@ -784,7 +677,7 @@ function renderPanelUsuario() {
                   <td style="padding: 5px 4px; font-size: 0.9em;">${e}</td>
                   <td style="padding: 5px 4px; text-align: center;">${conEtiq}</td>
                   <td style="padding: 5px 4px; text-align: center;">${sinEtiq}</td>
-                  <td style="padding: 5px 4px; text-align: center; font-weight: bold; color: ${total < 0? '#ef4444' : '#1e40af'};">${total}</td>
+                  <td style="padding: 5px 4px; text-align: center; font-weight: bold; color: ${total < 0 ? '#ef4444' : '#1e40af'};">${total}</td>
                 </tr>`;
               }).join("")}
             </tbody>
@@ -804,7 +697,6 @@ function renderPanelUsuario() {
             </tfoot>
           </table>
         </div>
-
         <div>
           <h3>➕ Agregar Stock</h3>
           ${estilosBase.map(e => `
@@ -817,7 +709,6 @@ function renderPanelUsuario() {
             <button id="btn-agregar-stock-sin-etiqueta" style="background:#6b7280; padding: 10px; font-size: 0.9em;">📦 Sin Etiqueta</button>
           </div>
           <button id="btn-reset-stock" style="width:100%; margin-top:6px; background:#ef4444; padding: 10px;">Reset Stock Total</button>
-
           <div style="margin-top:15px; padding-top:15px; border-top:2px solid #e5e7eb;">
             <h4 style="margin:0 0 8px 0; font-size:0.9em;">🔄 Convertir Stock Propio</h4>
             <select id="transfer-estilo" style="width:100%; margin-bottom:6px; padding:6px; font-size:0.85em;">
@@ -830,10 +721,8 @@ function renderPanelUsuario() {
             </div>
           </div>
         </div>
-
         <div>
           <h3>🛒 Registrar Venta</h3>
-
           <div style="position: relative; margin-bottom: 10px;">
             <input type="text" id="cliente-nombre" placeholder="Nombre Cliente (Opcional)"
               value="${state.clienteNombre}" autocomplete="off" style="margin-bottom: 0; width: 100%;">
@@ -844,43 +733,36 @@ function renderPanelUsuario() {
               z-index: 999; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             "></div>
           </div>
-
           ${estilosBase.map(e => `
             <div class="flex space-between" style="margin-bottom: 5px;">
               <span>${e}</span>
               <input type="number" data-venta="${e}" value="${state.ventaActual[e] || ""}" placeholder="0" style="width: 80px;">
             </div>`).join("")}
-
           <input type="text" id="alquiler-barril" placeholder="Alquiler barril (ej: HONEY 30Lts)"
             value="${state.alquilerBarril || ""}" style="margin-top: 6px;">
-
           <div style="margin-top: 10px; background: #1e293b; border-radius: 10px; padding: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <span style="color: #94a3b8; font-size: 0.9em;">Total latas:</span>
               <b style="color: #f1f5f9; font-size: 1.4em;">${totalLatas}</b>
             </div>
-
             <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-              <button
-                onclick="setState(p => { p.tipoLata = 'conEtiqueta'; return p; })"
+              <button onclick="setState(p => { p.tipoLata = 'conEtiqueta'; return p; })"
                 style="flex:1; padding: 8px 4px; border-radius: 8px;
-                       border: 2px solid ${state.tipoLata!== 'sinEtiqueta'? '#f59e0b' : '#334155'};
-                       background: ${state.tipoLata!== 'sinEtiqueta'? '#f59e0b' : '#0f172a'};
-                       color: ${state.tipoLata!== 'sinEtiqueta'? '#1e293b' : '#64748b'};
+                       border: 2px solid ${state.tipoLata !== 'sinEtiqueta' ? '#f59e0b' : '#334155'};
+                       background: ${state.tipoLata !== 'sinEtiqueta' ? '#f59e0b' : '#0f172a'};
+                       color: ${state.tipoLata !== 'sinEtiqueta' ? '#1e293b' : '#64748b'};
                        font-weight: bold; font-size: 0.8em; cursor: pointer; line-height: 1.4;">
                 🏷️ Con Etiqueta<br><span style="font-size:0.85em; font-weight:normal;">$1.750</span>
               </button>
-              <button
-                onclick="setState(p => { p.tipoLata = 'sinEtiqueta'; return p; })"
+              <button onclick="setState(p => { p.tipoLata = 'sinEtiqueta'; return p; })"
                 style="flex:1; padding: 8px 4px; border-radius: 8px;
-                       border: 2px solid ${state.tipoLata === 'sinEtiqueta'? '#60a5fa' : '#334155'};
-                       background: ${state.tipoLata === 'sinEtiqueta'? '#60a5fa' : '#0f172a'};
-                                             color: ${state.tipoLata === 'sinEtiqueta'? '#1e293b' : '#64748b'};
+                       border: 2px solid ${state.tipoLata === 'sinEtiqueta' ? '#60a5fa' : '#334155'};
+                       background: ${state.tipoLata === 'sinEtiqueta' ? '#60a5fa' : '#0f172a'};
+                       color: ${state.tipoLata === 'sinEtiqueta' ? '#1e293b' : '#64748b'};
                        font-weight: bold; font-size: 0.8em; cursor: pointer; line-height: 1.4;">
                 📦 Sin Etiqueta<br><span style="font-size:0.85em; font-weight:normal;">$1.450</span>
               </button>
             </div>
-
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
               <label style="color: #94a3b8; font-size: 0.9em; white-space: nowrap;">Precio unitario $</label>
               <input type="number" id="precio-unitario" value="${precioUnitario}"
@@ -891,44 +773,42 @@ function renderPanelUsuario() {
             <div style="text-align: right; margin-top: 8px; padding-top: 8px; border-top: 1px solid #334155;">
               <span style="color: #94a3b8; font-size: 0.85em;">Total a cobrar:</span>
               <b style="color: #34d399; font-size: 1.3em; margin-left: 8px;" data-total-display>
-                $${totalCobrado > 0? totalCobrado.toLocaleString() : "—"}
+                $${totalCobrado > 0 ? totalCobrado.toLocaleString() : "—"}
               </b>
             </div>
           </div>
-
           <div style="background:#fef3c7; border: 1px solid #f59e0b; border-radius: 10px; padding: 12px; margin-top: 10px;">
             <h4 style="margin: 0 0 8px 0; color: #92400e;">📊 Vista Previa Profeta</h4>
             <div style="display:flex; justify-content:space-between; margin: 4px 0; font-size:0.9em;">
-              <span style="color:#78350f;">Costo (${state.tipoLata === 'sinEtiqueta'? 'sin etiqueta' : 'con etiqueta'}):</span>
+              <span style="color:#78350f;">Costo (${state.tipoLata === 'sinEtiqueta' ? 'sin etiqueta' : 'con etiqueta'}):</span>
               <b style="color:#92400e;">$${preview.costoTotal.toLocaleString()}</b>
             </div>
             <div style="display:flex; justify-content:space-between; margin: 4px 0; font-size:0.9em;">
               <span style="color:#78350f;">Comisión (50%):</span>
-              <b style="color:${preview.comision > 0? '#059669' : '#92400e'};">
-                ${preview.comision > 0? '$' + preview.comision.toLocaleString() : '— (ingresá precio)'}
+              <b style="color:${preview.comision > 0 ? '#059669' : '#92400e'};">
+                ${preview.comision > 0 ? '$' + preview.comision.toLocaleString() : '— (ingresá precio)'}
               </b>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f59e0b;">
               <span style="color:#78350f; font-weight:bold;">Total a Rendir:</span>
               <b style="color:#b45309; font-size:1.1em;">$${preview.paraProfeta.toLocaleString()}</b>
             </div>
-            ${preview.gananciaBruta > 0? `<div style="margin-top:6px; font-size:0.8em; color:#78350f; text-align:right;">Ganancia bruta: $${preview.gananciaBruta.toLocaleString()}</div>` : ''}
+            ${preview.gananciaBruta > 0 ? `<div style="margin-top:6px; font-size:0.8em; color:#78350f; text-align:right;">Ganancia bruta: $${preview.gananciaBruta.toLocaleString()}</div>` : ''}
           </div>
-
           <button id="btn-registrar" style="width:100%; margin-top:10px; background:#1e40af;">
             ✅ Registrar Venta
           </button>
         </div>
       </div>
-
       <hr>
       <div class="flex space-between">
         <h3>📜 Historial de Ventas</h3>
         <div>
           <button id="btn-guardar" style="background:#059669;">💾 Guardar en Sheet</button>
         </div>
+      </div>
       <div id="historial-lista" style="margin-top: 15px;">
-        ${usuario.ventas.length === 0? '<p>No hay ventas registradas</p>' :
+        ${usuario.ventas.length === 0 ? '<p>No hay ventas registradas</p>' :
           [...usuario.ventas].reverse().map((v, i) => `
           <div style="border-bottom:1px solid #eee; padding:10px 0; font-size: 0.9em;">
             <div class="flex space-between" style="align-items: flex-start;">
@@ -947,6 +827,7 @@ function renderPanelUsuario() {
                   <span style="color:#059669;">Comisión: $${(v.comision||0).toLocaleString()}</span>
                   <span style="color:#b45309;">👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
                 </div>
+              </div>
               <button onclick="borrarVentaIndividual(${usuario.ventas.length - 1 - i})" title="Borrar esta venta"
                 style="margin-left:12px; background:#ef4444; padding:4px 10px; font-size:0.85em; border-radius:6px; flex-shrink:0; cursor:pointer;">
                 🗑️
@@ -960,7 +841,6 @@ function renderPanelUsuario() {
   bindAutocompletadoCliente();
   bindPrecioUnitario();
 }
-
 function bindPrecioUnitario() {
   const input = document.getElementById("precio-unitario");
   if (!input) return;
@@ -969,16 +849,16 @@ function bindPrecioUnitario() {
     state.precioUnitario = input.value;
     const totalLatas = Object.values(state.ventaActual).reduce((a, b) => a + (Number(b) || 0), 0);
     const total = totalLatas * precio;
-    state.totalCobradoInput = total > 0? String(total) : "";
+    state.totalCobradoInput = total > 0 ? String(total) : "";
     const display = document.querySelector("[data-total-display]");
-    if (display) display.textContent = total > 0? "$" + total.toLocaleString() : "$—";
+    if (display) display.textContent = total > 0 ? "$" + total.toLocaleString() : "$—";
   });
 }
 
 function bindAutocompletadoCliente() {
   const input = document.getElementById("cliente-nombre");
   const sugerencias = document.getElementById("sugerencias-cliente");
-  if (!input ||!sugerencias) return;
+  if (!input || !sugerencias) return;
 
   input.addEventListener("input", () => {
     const val = input.value.trim().toLowerCase();
@@ -996,13 +876,13 @@ function bindAutocompletadoCliente() {
 
     sugerencias.innerHTML = filtrados.map(nombre => {
       const cliente = state.clientesGlobales.find(c => c.nombre === nombre);
-      const deuda = cliente? (cliente.deuda - cliente.pagado) : 0;
+      const deuda = cliente ? (cliente.deuda - cliente.pagado) : 0;
       return `
       <div onclick="seleccionarCliente('${nombre.replace(/'/g, "\\'")}')"
         style="padding: 8px 12px; cursor: pointer; border-bottom: 1px solid #f3f4f6; font-size: 0.9em;"
         onmouseover="this.style.background='#eff6ff'"
         onmouseout="this.style.background='white'">
-        👤 ${nombre} ${deuda > 0? `<span style="color:#dc2626; font-size:0.8em;">(Debe $${deuda.toLocaleString()})</span>` : ''}
+        👤 ${nombre} ${deuda > 0 ? `<span style="color:#dc2626; font-size:0.8em;">(Debe $${deuda.toLocaleString()})</span>` : ''}
       </div>`;
     }).join("");
     sugerencias.style.display = "block";
@@ -1023,7 +903,7 @@ function seleccionarCliente(nombre) {
   const ventasCliente = ventas.filter(v => v.cliente && v.cliente.toLowerCase() === nombre.toLowerCase());
   if (ventasCliente.length > 0) {
     const ultima = ventasCliente[ventasCliente.length - 1];
-    setState(p => { p.ventaActual = {...ultima.estilos }; return p; });
+    setState(p => { p.ventaActual = { ...ultima.estilos }; return p; });
   }
 }
 
@@ -1073,7 +953,6 @@ function bindPanelEventos() {
         input.value = "";
       }
     });
-    // ✅ Sincronizar con Sheet
     await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
   };
 
@@ -1098,7 +977,6 @@ function bindPanelEventos() {
         input.value = "";
       }
     });
-    // ✅ Sincronizar con Sheet
     await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
   };
 
@@ -1159,7 +1037,7 @@ function renderUsuarios() {
   if (!container) return;
   container.innerHTML = Object.keys(state.usuarios).map(u => `
     <button onclick="setState(p => { p.usuarioActivo = '${u}'; return p; })"
-      style="background: ${state.usuarioActivo === u? '#1e40af' : '#3b82f6'}; margin: 5px;">
+      style="background: ${state.usuarioActivo === u ? '#1e40af' : '#3b82f6'}; margin: 5px;">
       Panel ${u}
     </button>`).join("");
 }
@@ -1175,11 +1053,11 @@ function renderTransferencia() {
       </div>
       <div class="flex" style="flex-wrap: wrap; gap: 10px; align-items: center;">
         <select onchange="setState(p => { p.transferDesde = this.value; return p; })" style="width: auto; padding: 8px; border-radius: 6px;">
-          ${Object.keys(state.usuarios).map(u => `<option ${state.transferDesde === u? 'selected' : ''} value="${u}">${u}</option>`).join("")}
+          ${Object.keys(state.usuarios).map(u => `<option ${state.transferDesde === u ? 'selected' : ''} value="${u}">${u}</option>`).join("")}
         </select>
         <span style="font-weight: bold; color: #3b82f6;">→</span>
         <select onchange="setState(p => { p.transferHacia = this.value; return p; })" style="width: auto; padding: 8px; border-radius: 6px;">
-          ${Object.keys(state.usuarios).map(u => `<option ${state.transferHacia === u? 'selected' : ''} value="${u}">${u}</option>`).join("")}
+          ${Object.keys(state.usuarios).map(u => `<option ${state.transferHacia === u ? 'selected' : ''} value="${u}">${u}</option>`).join("")}
         </select>
       </div>
       <div style="margin-top: 15px;">
@@ -1240,7 +1118,7 @@ function mostrarHistorialStock() {
         <button onclick="this.closest('div[style*=fixed]').remove()" style="background:#ef4444; padding:8px 16px;">✕ Cerrar</button>
       </div>
       <div>
-        ${state.historialStock.length === 0? '<p style="color:gray;">No hay cargas registradas</p>' :
+        ${state.historialStock.length === 0 ? '<p style="color:gray;">No hay cargas registradas</p>' :
           [...state.historialStock].reverse().map(h => `
           <div style="border-bottom:1px solid #e5e7eb; padding:10px 0; font-size:0.9em;">
             <div style="display:flex; justify-content:space-between;">
@@ -1248,10 +1126,10 @@ function mostrarHistorialStock() {
               <small style="color:#64748b;">${h.fecha}</small>
             </div>
             <div style="margin-top:4px;">
-              <span style="background:${h.cantidad > 0? '#dcfce7' : '#fee2e2'}; color:${h.cantidad > 0? '#166534' : '#991b1b'}; padding:2px 8px; border-radius:4px; font-weight:600;">
-                ${h.cantidad > 0? '+' : ''}${h.cantidad}
+              <span style="background:${h.cantidad > 0 ? '#dcfce7' : '#fee2e2'}; color:${h.cantidad > 0 ? '#166534' : '#991b1b'}; padding:2px 8px; border-radius:4px; font-weight:600;">
+                ${h.cantidad > 0 ? '+' : ''}${h.cantidad}
               </span>
-              <span style="margin-left:8px; color:#6b7280;">${h.tipo === 'conEtiqueta'? '🏷️ Con Etiqueta' : '📦 Sin Etiqueta'}</span>
+              <span style="margin-left:8px; color:#6b7280;">${h.tipo === 'conEtiqueta' ? '🏷️ Con Etiqueta' : '📦 Sin Etiqueta'}</span>
             </div>
           </div>`).join("")}
       </div>
@@ -1272,7 +1150,7 @@ function mostrarHistorialTransferencias() {
         <button onclick="this.closest('div[style*=fixed]').remove()" style="background:#ef4444; padding:8px 16px;">✕ Cerrar</button>
       </div>
       <div>
-        ${state.historialTransferencias.length === 0? '<p style="color:gray;">No hay transferencias registradas</p>' :
+        ${state.historialTransferencias.length === 0 ? '<p style="color:gray;">No hay transferencias registradas</p>' :
           [...state.historialTransferencias].reverse().map(h => `
           <div style="border-bottom:1px solid #e5e7eb; padding:10px 0; font-size:0.9em;">
             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -1283,7 +1161,7 @@ function mostrarHistorialTransferencias() {
               <span style="background:#ede9fe; color:#7c3aed; padding:2px 8px; border-radius:4px; font-weight:600;">
                 ${h.cantidad} ${h.estilo}
               </span>
-              <span style="margin-left:8px; color:#6b7280;">${h.tipo === 'conEtiqueta'? '🏷️ Con Etiqueta' : '📦 Sin Etiqueta'}</span>
+              <span style="margin-left:8px; color:#6b7280;">${h.tipo === 'conEtiqueta' ? '🏷️ Con Etiqueta' : '📦 Sin Etiqueta'}</span>
             </div>
           </div>`).join("")}
       </div>
@@ -1297,7 +1175,7 @@ function mostrarTodosLosClientes() {
   const modal = document.createElement("div");
   modal.style.cssText = "position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:9999; display:flex; align-items:center; justify-content:center; padding:20px;";
 
-  const todosLosClientes = state.clientesGlobales.sort((a,b) => a.nombre.localeCompare(b.nombre));
+  const todosLosClientes = state.clientesGlobales.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
   modal.innerHTML = `
     <div style="background:white; border-radius:12px; padding:24px; max-width:600px; width:100%; max-height:80vh; overflow-y:auto;">
@@ -1309,9 +1187,9 @@ function mostrarTodosLosClientes() {
         ${todosLosClientes.map(cliente => {
           const deuda = cliente.deuda - cliente.pagado;
           return `
-          <div style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; ${deuda > 0? 'background:#fef2f2; border-color:#fecaca;' : 'background:#f9fafb;'}">
+          <div style="padding:10px; border:1px solid #e5e7eb; border-radius:8px; ${deuda > 0 ? 'background:#fef2f2; border-color:#fecaca;' : 'background:#f9fafb;'}">
             <div style="font-weight:600; font-size:0.9em;">${cliente.nombre}</div>
-            ${deuda > 0? `<div style="color:#dc2626; font-size:0.8em; margin-top:4px;">Debe: $${deuda.toLocaleString()}</div>` : '<div style="color:#059669; font-size:0.8em; margin-top:4px;">Sin deuda</div>'}
+            ${deuda > 0 ? `<div style="color:#dc2626; font-size:0.8em; margin-top:4px;">Debe: $${deuda.toLocaleString()}</div>` : '<div style="color:#059669; font-size:0.8em; margin-top:4px;">Sin deuda</div>'}
           </div>`;
         }).join("")}
       </div>
