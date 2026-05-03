@@ -279,6 +279,76 @@ async function registrarPagoCliente(index, metodo, porcentaje) {
   
   console.log("💵 Monto a cobrar:", monto);
   
+  cliente.pagado += monto;
+  if (!cliente.pagos) cliente.pagos = [];
+  cliente.pagos.push({
+    monto: monto,
+    metodo: metodo,
+    fecha: new Date().toLocaleString('es-AR')
+  });
+  
+  await enviarPagoAlSheet(cliente.nombre, monto, metodo);
+  await cargarDatosDesdeSheet();
+  
+  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
+  alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
+  
+  render();
+}
+
+async function registrarPagoManual(index) {
+  console.log("🔵 registrarPagoManual llamado para índice:", index);
+  
+  const inputEl = document.getElementById(`pago-manual-${index}`);
+  const metodoEl = document.getElementById(`pago-metodo-${index}`);
+  
+  if (!inputEl || !metodoEl) {
+    console.error("❌ No se encontraron los elementos del DOM");
+    return;
+  }
+  
+  const monto = Number(inputEl.value);
+  const metodo = metodoEl.value;
+  
+  if (!monto || monto <= 0) {
+    alert("⚠️ Ingresá un monto válido mayor a 0");
+    return;
+  }
+  
+  const cliente = state.clientesGlobales[index];
+  if (!cliente) {
+    console.error("❌ Cliente no encontrado");
+    return;
+  }
+  
+  const deudaActual = cliente.deuda - cliente.pagado;
+  
+  if (monto > deudaActual) {
+    alert(`⚠️ El monto ($${monto.toLocaleString()}) supera la deuda ($${deudaActual.toLocaleString()}). Se cobrará solo la deuda.`);
+  }
+  
+  const montoACobrar = Math.min(monto, deudaActual);
+  
+  console.log("💰 Monto a cobrar manual:", montoACobrar);
+  
+  cliente.pagado += montoACobrar;
+  if (!cliente.pagos) cliente.pagos = [];
+  cliente.pagos.push({
+    monto: montoACobrar,
+    metodo: metodo,
+    fecha: new Date().toLocaleString('es-AR')
+  });
+  
+  await enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
+  await cargarDatosDesdeSheet();
+  
+  inputEl.value = '';
+  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
+  alert(`✅ Cobrado $${montoACobrar.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
+  
+  render();
+}
+  
   // 1. Actualizar estado local del cliente
   cliente.pagado += monto;
   if (!cliente.pagos) cliente.pagos = [];
@@ -303,7 +373,7 @@ async function registrarPagoCliente(index, metodo, porcentaje) {
   render();
 }
 
-function registrarPagoManual(index) {
+async function registrarPagoManual(index) {
   console.log("🔵 registrarPagoManual llamado para índice:", index);
   
   const inputEl = document.getElementById(`pago-manual-${index}`);
