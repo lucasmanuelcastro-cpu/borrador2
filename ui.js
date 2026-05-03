@@ -358,12 +358,9 @@ async function registrarPagoManual(index) {
     fecha: new Date().toLocaleString('es-AR')
   });
   
-  // 2. Enviar pago al Sheet (esto actualiza Estado, Cobrado Real y Método Pago)
+  // 2. Enviar pago al Sheet
   await enviarPagoAlSheet(cliente.nombre, monto, metodo);
 
- // ✅ NUEVO: Recargar datos desde el Sheet para sincronizar
-  await cargarDatosDesdeSheet();
-  
   // 3. Recargar datos desde el Sheet para sincronizar
   await cargarDatosDesdeSheet();
   
