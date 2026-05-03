@@ -359,6 +359,9 @@ function registrarPagoManual(index) {
   
   // 3. Enviar al Sheet
   enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
+
+   // ✅ NUEVO: Recargar datos desde el Sheet para sincronizar
+  await cargarDatosDesdeSheet();
   
   // 4. Limpiar input y mostrar mensaje
   inputEl.value = '';
