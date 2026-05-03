@@ -231,12 +231,13 @@ async function cargarDatosDesdeSheet() {
               "HONEY":       Number(datos.stockSinEtiqueta["HONEY"])       || 0,
             };
           }
-          // Sincronizar ventas desde el Sheet
           if (datos.ventas && Array.isArray(datos.ventas) && datos.ventas.length > 0) {
-            prev.usuarios[nombre].ventas = datos.ventas;
-          }
-        }
-      });
+  prev.usuarios[nombre].ventas = datos.ventas.map(venta => ({
+    ...venta,
+    estado: venta.estado || "PENDIENTE",
+    cobradoReal: venta.cobradoReal || 0
+  }));
+}
 
       // 3. SINCRONIZAR CLIENTES/DEUDORES
       if (datosCloud.clientes && Array.isArray(datosCloud.clientes) && datosCloud.clientes.length > 0) {
