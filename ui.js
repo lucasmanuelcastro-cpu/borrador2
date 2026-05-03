@@ -674,8 +674,15 @@ function renderPanelUsuario() {
         </div>
 
         <div>
+                  
           <h3>🛒 Registrar Venta</h3>
-
+<div style="margin: 10px 0;">
+            <label style="color: #94a3b8; font-size: 0.85em;">Método de pago:</label>
+            <select id="metodo-pago-select" style="width:100%; margin-top:4px; padding:8px; border-radius:6px; background:#1e293b; color:white; border:1px solid #334155;">
+              <option value="efectivo" ${state.metodoPago === 'efectivo' ? 'selected' : ''}>💵 Efectivo</option>
+              <option value="transferencia" ${state.metodoPago === 'transferencia' ? 'selected' : ''}>🏦 Transferencia</option>
+            </select>
+          </div>
           <div style="position: relative; margin-bottom: 10px;">
             <input type="text" id="cliente-nombre" placeholder="Nombre Cliente (Opcional)"
               value="${state.clienteNombre}" autocomplete="off" style="margin-bottom: 0; width: 100%;">
@@ -872,7 +879,12 @@ function seleccionarCliente(nombre) {
 function bindPanelEventos() {
   document.querySelectorAll("[data-stock]").forEach(i =>
     i.onchange = (e) => modificarStockDirecto(state.usuarioActivo, e.target.dataset.stock, e.target.value));
-
+  const metodoSelect = document.getElementById("metodo-pago-select");
+  if (metodoSelect) {
+    metodoSelect.onchange = (e) => {
+      setState(p => { p.metodoPago = e.target.value; return p; });
+    };
+  }
   document.querySelectorAll("[data-venta]").forEach(i =>
     i.onchange = (e) => {
       setState(p => { p.ventaActual[e.target.dataset.venta] = e.target.value; return p; });
