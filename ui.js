@@ -604,34 +604,36 @@ function renderVentasGeneral() {
     <div class="card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
       <h2>📋 Historial Global (${todasLasVentas.length} ventas)</h2>
       <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
-       ${todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "").length === 0
+      ${todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "").length === 0
    ? '<p style="color:gray;">No hay ventas cobradas aún.</p>'
-          : [...todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "")].reverse().map(v => 
-              const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
-                state.usuarios[u].ventas.some(vv => vv === v)
-              ) || '—';
-              return `
-            <div style="border-bottom: 1px solid #f3f4f6; padding: 8px 0; font-size: 0.88em;">
-              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
-                <span><b>👤 ${v.cliente || 'Consumidor Final'}</b>
-                  <span style="margin-left:8px; background:#ede9fe; color:#7c3aed; border-radius:6px; padding:1px 7px; font-size:0.85em;">
-                    ${vendedor}
-                  </span>
-                </span>
-                <small style="color:#64748b;">📅 ${v.fecha || ''}</small>
-              </div>
-              <div style="color:#555; margin: 3px 0;">
-                ${Object.entries(v.estilos || {}).filter(([,c]) => Number(c) > 0).map(([e,c]) => `${c} ${e}`).join(', ') || '—'}
-                <b style="color:#1e40af; margin-left:6px;">(${Object.values(v.estilos || {}).reduce((a,b) => a+(Number(b)||0), 0)} latas)</b>
-                <span style="margin-left:6px; padding:1px 8px; border-radius:10px; font-size:0.82em; font-weight:600; background:${v.tipoLata === 'sinEtiqueta' ? '#dbeafe' : '#fef9c3'}; color:${v.tipoLata === 'sinEtiqueta' ? '#1e40af' : '#92400e'};">${v.tipoLata === 'sinEtiqueta' ? '📦 Sin etiqueta' : '🏷️ Con etiqueta'}</span>
-              </div>
-              <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151; align-items:center;">
-                <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
-                <span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'};">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
-                <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
-                <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
-              </div>
-            </div>`;}).join("")
+   : [...todasLasVentas.filter(v => v.metodoPago && v.metodoPago !== "")].reverse().map(v => {
+       const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
+         state.usuarios[u].ventas.some(vv => vv === v)
+       ) || '—';
+       return `
+       <div style="border-bottom: 1px solid #f3f4f6; padding: 8px 0; font-size: 0.88em;">
+         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px;">
+           <span><b>👤 ${v.cliente || 'Consumidor Final'}</b>
+             <span style="margin-left:8px; background:#ede9fe; color:#7c3aed; border-radius:6px; padding:1px 7px; font-size:0.85em;">
+               ${vendedor}
+             </span>
+           </span>
+           <small style="color:#64748b;">📅 ${v.fecha || ''}</small>
+         </div>
+         <div style="color:#555; margin: 3px 0;">
+           ${Object.entries(v.estilos || {}).filter(([,c]) => Number(c) > 0).map(([e,c]) => `${c} ${e}`).join(', ') || '—'}
+           <b style="color:#1e40af; margin-left:6px;">(${Object.values(v.estilos || {}).reduce((a,b) => a+(Number(b)||0), 0)} latas)</b>
+           <span style="margin-left:6px; padding:1px 8px; border-radius:10px; font-size:0.82em; font-weight:600; background:${v.tipoLata === 'sinEtiqueta' ? '#dbeafe' : '#fef9c3'}; color:${v.tipoLata === 'sinEtiqueta' ? '#1e40af' : '#92400e'};">${v.tipoLata === 'sinEtiqueta' ? '📦 Sin etiqueta' : '🏷️ Con etiqueta'}</span>
+         </div>
+         <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151; align-items:center;">
+           <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
+           <span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'};">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
+           <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
+           <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
+         </div>
+       </div>`;
+     }).join("")
+   }
         }
       </div>
     </div>`;
