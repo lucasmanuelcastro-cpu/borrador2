@@ -109,6 +109,28 @@ function getEstadisticasVentas() {
   return { totalesPorEstilo, granTotalLatas };
 }
 
+/**
+ * Cuando la deuda del cliente queda saldada, marca ventas locales como cobradas
+ * para que entren en Historial Global (filtro metodoPago) aunque el Sheet tarde.
+ */
+function marcaVentasLocalesCobradasSiSaldado(nombreCliente, metodo) {
+  const norm = (s) => String(s || "").toLowerCase().trim();
+  const n = norm(nombreCliente);
+  Object.values(state.usuarios).forEach((u) => {
+    u.ventas.forEach((v) => {
+      if (norm(v.cliente) !== n) return;
+      const sinCobrar =
+        v.estado === "PENDIENTE" ||
+        !v.metodoPago ||
+        v.metodoPago === "";
+      if (!sinCobrar) return;
+      v.metodoPago = metodo;
+      v.estado = "COBRADO";
+      v.cobradoReal = Number(v.totalCobrado) || 0;
+    });
+  });
+}
+
 function registrarVentaLocal() {
   const usuario = state.usuarios[state.usuarioActivo];
   const totalLatas = Object.values(state.ventaActual).reduce((a, b) => a + (Number(b) || 0), 0);
@@ -120,6 +142,7 @@ function registrarVentaLocal() {
     estilos: {...state.ventaActual},
     alquilerBarril: state.alquilerBarril,
     tipoLata: state.tipoLata,
+    estado: "PENDIENTE",
     metodoPago: "",
     totalCobrado: Number(state.totalCobradoInput) || 0,
     costoTotal: preview.costoTotal,
@@ -246,110 +269,107 @@ async function borrarVentaIndividual(index) {
   }
 }
 
-async function registrarPagoCliente(index, metodo, porcentaje) {
-  console.log("🔵 registrarPagoCliente llamado:", { index, metodo, porcentaje });
-  
+/** Mismo valor en todos los flujos de cobro (botones y manual). */
+function normalizarMetodoPago(metodoRaw) {
+  const s = String(metodoRaw || "").toLowerCase().trim();
+  return s === "transferencia" ? "transferencia" : "efectivo";
+}
+
+/**
+ * Único camino de cobro en cartera: botones 💵/🏦 100·50 y cobro manual + select.
+ * Todos terminan en la misma acción POST `registrarPago` con método de pago explícito.
+ */
+async function aplicarCobroCartera(index, montoPropuesto, metodoRaw) {
+  const metodo = normalizarMetodoPago(metodoRaw);
   const cliente = state.clientesGlobales[index];
   if (!cliente) {
     console.error("❌ Cliente no encontrado en índice:", index);
     return;
   }
-  
-  const deudaActual = cliente.deuda - cliente.pagado;
-  console.log("💰 Deuda actual:", deudaActual);
-  
-  if (deudaActual <= 0) {
+
+  const deudaAntes = cliente.deuda - cliente.pagado;
+  if (deudaAntes <= 0) {
     alert(`✅ ${cliente.nombre} no tiene deuda pendiente.`);
     return;
   }
-  
-  let monto = 0;
-  if (porcentaje === '100') {
-    monto = deudaActual;
-  } else if (porcentaje === '50') {
-    monto = deudaActual * 0.5;
-  }
-  
+
+  const monto = Math.min(Math.max(0, Number(montoPropuesto) || 0), deudaAntes);
   if (monto <= 0) return;
-  
-  console.log("💵 Monto a cobrar:", monto);
-  
+
   cliente.pagado += monto;
   if (!cliente.pagos) cliente.pagos = [];
   cliente.pagos.push({
     monto: monto,
     metodo: metodo,
-    fecha: new Date().toLocaleString('es-AR')
+    fecha: new Date().toLocaleString("es-AR")
   });
-  
+
+  const deudaRestante = Math.max(0, cliente.deuda - cliente.pagado);
+  if (deudaRestante < 1) {
+    marcaVentasLocalesCobradasSiSaldado(cliente.nombre, metodo);
+  }
+
   await enviarPagoAlSheet(cliente.nombre, monto, metodo);
   await cargarDatosDesdeSheet();
-  
-  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
+
+  if (deudaRestante < 1) {
+    marcaVentasLocalesCobradasSiSaldado(cliente.nombre, metodo);
+  }
+
+  const metodoTexto = metodo === "efectivo" ? "💵 Efectivo" : "🏦 Transferencia";
   alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
-  
+
+  guardarDatos();
   render();
 }
+
+/** Atajos 100% / 50%: verdes = efectivo, azules = transferencia (ver onclick en render). */
+async function registrarPagoCliente(index, metodo, porcentaje) {
+  const cliente = state.clientesGlobales[index];
+  if (!cliente) return;
+  const deudaActual = cliente.deuda - cliente.pagado;
+  if (deudaActual <= 0) {
+    alert(`✅ ${cliente.nombre} no tiene deuda pendiente.`);
+    return;
+  }
+  const monto = porcentaje === "100" ? deudaActual : deudaActual * 0.5;
+  await aplicarCobroCartera(index, monto, metodo);
+}
+
 async function registrarPagoManual(index) {
-  console.log("🔵 registrarPagoManual llamado para índice:", index);
-  
   const inputEl = document.getElementById(`pago-manual-${index}`);
   const metodoEl = document.getElementById(`pago-metodo-${index}`);
-  
   if (!inputEl || !metodoEl) {
     console.error("❌ No se encontraron los elementos del DOM");
     return;
   }
-  
-  const monto = Number(inputEl.value);
+  const montoIngresado = Number(inputEl.value);
   const metodo = metodoEl.value;
-  
-  if (!monto || monto <= 0) {
+  if (!montoIngresado || montoIngresado <= 0) {
     alert("⚠️ Ingresá un monto válido mayor a 0");
     return;
   }
-  
   const cliente = state.clientesGlobales[index];
-  if (!cliente) {
-    console.error("❌ Cliente no encontrado");
-    return;
-  }
-  
+  if (!cliente) return;
   const deudaActual = cliente.deuda - cliente.pagado;
-  
-  if (monto > deudaActual) {
-    alert(`⚠️ El monto ($${monto.toLocaleString()}) supera la deuda ($${deudaActual.toLocaleString()}). Se cobrará solo la deuda.`);
+  if (montoIngresado > deudaActual) {
+    alert(
+      `⚠️ El monto ($${montoIngresado.toLocaleString()}) supera la deuda ($${deudaActual.toLocaleString()}). Se cobrará solo la deuda.`
+    );
   }
-  
-  const montoACobrar = Math.min(monto, deudaActual);
-  
-  console.log("💰 Monto a cobrar manual:", montoACobrar);
-  
-  cliente.pagado += montoACobrar;
-  if (!cliente.pagos) cliente.pagos = [];
-  cliente.pagos.push({
-    monto: montoACobrar,
-    metodo: metodo,
-    fecha: new Date().toLocaleString('es-AR')
-  });
-  
-  await enviarPagoAlSheet(cliente.nombre, montoACobrar, metodo);
-  await cargarDatosDesdeSheet();
-  
-  inputEl.value = '';
-  const metodoTexto = metodo === 'efectivo' ? '💵 Efectivo' : '🏦 Transferencia';
-  alert(`✅ Cobrado $${montoACobrar.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
-  
-  render();
+  inputEl.value = "";
+  await aplicarCobroCartera(index, montoIngresado, metodo);
 }
 
 async function enviarPagoAlSheet(nombreCliente, monto, metodo) {
   try {
+    const metodoNorm = normalizarMetodoPago(metodo);
     const payload = {
       accion: "registrarPago",
       cliente: nombreCliente,
       monto: monto,
-      metodo: metodo,
+      metodo: metodoNorm,
+      metodoPago: metodoNorm,
       fecha: new Date().toLocaleString('es-AR')
     };
     const resp = await fetch(URL_SCRIPT, {
