@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyiM1XD0qi4KtkGcQmo55iF9SlbQjhCrrhsz4S5P0HITAUybytFWKG3848pl6s2L4msMg/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw0Pv575CpGioScxe4p5mobDsGPTpnn_K6Ssy1N2rWJd97FeAFlRY8Mz-2de3S555D9Mg/exec";
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
@@ -248,6 +248,11 @@ async function cargarDatosDesdeSheet() {
           if (idx !== -1) {
             prev.clientesGlobales[idx].deuda = clienteCloud.deuda;
             prev.clientesGlobales[idx].saldo = clienteCloud.saldo;
+            const cloudPagado = Number(clienteCloud.pagado);
+            const localPagado = Number(prev.clientesGlobales[idx].pagado) || 0;
+            if (clienteCloud.pagado !== undefined && clienteCloud.pagado !== null && !isNaN(cloudPagado)) {
+              prev.clientesGlobales[idx].pagado = Math.max(cloudPagado, localPagado);
+            }
           } else {
             prev.clientesGlobales.push({
               nombre: clienteCloud.nombre,
