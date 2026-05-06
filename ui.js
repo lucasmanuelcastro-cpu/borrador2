@@ -89,8 +89,17 @@ function getTotalVentasPorMetodo(metodo) {
   return totalContado + cobrosDeuda;
 }
 
+/** Sheet no envía paraProfeta; es costo + comisión (misma fórmula que Vista Previa). */
+function paraProfetaMostrar(v) {
+  const p = Number(v.paraProfeta);
+  if (!isNaN(p) && p > 0) return p;
+  const c = Number(v.costoTotal !== undefined ? v.costoTotal : v.costo) || 0;
+  const com = Number(v.comision) || 0;
+  return c + com;
+}
+
 function getGananciaTotalProfeta() {
-  return getVentasGenerales().reduce((acc, v) => acc + (Number(v.paraProfeta) || 0), 0);
+  return getVentasGenerales().reduce((acc, v) => acc + paraProfetaMostrar(v), 0);
 }
 
 function getEstadisticasVentas() {
@@ -555,7 +564,7 @@ function renderVentasGeneral() {
   const dineroTransferencia = getTotalVentasPorMetodo("transferencia");
   const dineroTotal = getTotalVentasDinero();
   const totalProfeta = getGananciaTotalProfeta();
-  const todasLasVentas = getVentasGenerales().filter(v => v.metodoPago && v.metodoPago !== "");
+  const todasLasVentas = getVentasGenerales().filter(v => (Number(v.totalCobrado) || 0) > 0);
   
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -585,9 +594,10 @@ function renderVentasGeneral() {
 
     <div class="card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
       <h2>📋 Historial Global (${todasLasVentas.length} ventas)</h2>
+      <p style="color:#64748b; font-size:0.85em; margin:0 0 8px 0;">Incluye fiado pendiente; el método se completa al cobrar en Cartera.</p>
       <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
         ${todasLasVentas.length === 0
-          ? '<p style="color:gray;">No hay ventas cobradas aún.</p>'
+          ? '<p style="color:gray;">No hay ventas registradas aún.</p>'
           : [...todasLasVentas].reverse().map(v => {
               const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
                 state.usuarios[u].ventas.some(vv => vv === v)
@@ -609,9 +619,17 @@ function renderVentasGeneral() {
                 </div>
                 <div style="display:flex; gap:12px; flex-wrap:wrap; color:#374151; align-items:center;">
                   <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
-                  <span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:${v.metodoPago === 'transferencia' ? '#dbeafe' : '#dcfce7'}; color:${v.metodoPago === 'transferencia' ? '#1e40af' : '#166534'};">${v.metodoPago === 'transferencia' ? '🏦 Transferencia' : '💵 Efectivo'}</span>
+                  ${(() => {
+                    const est = String(v.estado || "").trim().toUpperCase();
+                    const mp = String(v.metodoPago || "").trim().toLowerCase();
+                    if (est === "PENDIENTE" && !mp)
+                      return '<span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:#fef3c7; color:#92400e;">⏳ Fiado (pendiente)</span>';
+                    if (mp === "transferencia")
+                      return '<span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:#dbeafe; color:#1e40af;">🏦 Transferencia</span>';
+                    return '<span style="padding:1px 8px; border-radius:6px; font-size:0.85em; font-weight:600; background:#dcfce7; color:#166534;">💵 Efectivo</span>';
+                  })()}
                   <span>Comisión: $${(v.comision||0).toLocaleString()}</span>
-                  <span>👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
+                  <span>👑 Profeta: $${paraProfetaMostrar(v).toLocaleString()}</span>
                 </div>
               </div>`;
             }).join("")
@@ -845,7 +863,7 @@ function renderPanelUsuario() {
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                   <span>💵 $${(v.totalCobrado||0).toLocaleString()}</span>
                   <span style="color:#059669;">Comisión: $${(v.comision||0).toLocaleString()}</span>
-                  <span style="color:#b45309;">👑 Profeta: $${(v.paraProfeta||0).toLocaleString()}</span>
+                  <span style="color:#b45309;">👑 Profeta: $${paraProfetaMostrar(v).toLocaleString()}</span>
                 </div>
               </div>
               <button onclick="borrarVentaIndividual(${usuario.ventas.length - 1 - i})" title="Borrar esta venta"
