@@ -1,6 +1,15 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw0Pv575CpGioScxe4p5mobDsGPTpnn_K6Ssy1N2rWJd97FeAFlRY8Mz-2de3S555D9Mg/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzipbt8b8m8mZVWJQ8JM91r2qRbNFsvaFuBbPUk46LXF2467hKoqKnS5fCbaKfwRgH5KA/exec";
+
+/** El Sheet guarda "sin"/"con"; la UI usa sinEtiqueta/conEtiqueta */
+function normalizarTipoLataDesdeSheet(raw) {
+  var s = String(raw || "").toLowerCase().trim();
+  if (s === "sin" || s === "sinetiqueta" || s === "sin_etiqueta") return "sinEtiqueta";
+  if (s === "con" || s === "conetiqueta" || s === "con_etiqueta") return "conEtiqueta";
+  if (s.indexOf("sin") !== -1) return "sinEtiqueta";
+  return "conEtiqueta";
+}
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
@@ -231,11 +240,23 @@ async function cargarDatosDesdeSheet() {
             };
           }
           if (datos.ventas && Array.isArray(datos.ventas) && datos.ventas.length > 0) {
-            prev.usuarios[nombre].ventas = datos.ventas.map(venta => ({
-              ...venta,
-              estado: venta.estado || "PENDIENTE",
-              cobradoReal: venta.cobradoReal || 0
-            }));
+            prev.usuarios[nombre].ventas = datos.ventas.map(venta => {
+              var tipo = normalizarTipoLataDesdeSheet(venta.tipoLata);
+              var costo = Number(venta.costo) || 0;
+              var com = Number(venta.comision) || 0;
+              var paraProfeta =
+                venta.paraProfeta != null && venta.paraProfeta !== ""
+                  ? Number(venta.paraProfeta)
+                  : costo + com;
+              return {
+                ...venta,
+                tipoLata: tipo,
+                estado: venta.estado || "PENDIENTE",
+                cobradoReal: venta.cobradoReal || 0,
+                paraProfeta: paraProfeta,
+                costoTotal: venta.costoTotal != null ? venta.costoTotal : costo
+              };
+            });
           }
         }
       });
