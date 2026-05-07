@@ -98,6 +98,19 @@ function paraProfetaMostrar(v) {
   return c + com;
 }
 
+/** Fiado con cliente: no lista hasta Cobrar en Cartera. Contado / legacy según método y estado. */
+function ventaApareceEnHistorialGlobal(v) {
+  const est = String(v.estado || "").trim().toUpperCase();
+  const mp = String(v.metodoPago || "").trim();
+  const cli = String(v.cliente || "").trim();
+  if (est === "PAGADO" || est === "COBRADO") return true;
+  if (est === "PENDIENTE") {
+    if (cli && cli !== "Consumidor Final") return false;
+    return mp.length > 0;
+  }
+  return mp.length > 0;
+}
+
 function getGananciaTotalProfeta() {
   return getVentasGenerales().reduce((acc, v) => acc + paraProfetaMostrar(v), 0);
 }
@@ -227,6 +240,7 @@ function modificarStockDirecto(usuario, estilo, valor, tipo = 'conEtiqueta') {
   }
 
   registrarCargaStock(usuario, estilo, cantidadNueva - cantidadAnterior, tipo);
+  encolarActualizarStockEnSheet(usuario);
   render();
 }
 
@@ -253,29 +267,14 @@ async function borrarVentaIndividual(index) {
     return prev;
   });
 
-  await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
-
-  try {
-    const payload = {
-      accion: "borrarVenta",
-      vendedor: venta.vendedor || state.usuarioActivo,
-      fecha: venta.fecha,
-      cliente: venta.cliente,
-      estilos: venta.estilos,
-      tipoLata: venta.tipoLata || "conEtiqueta"
-    };
-    const resp = await fetch(URL_SCRIPT, {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { "Content-Type": "text/plain" },
-      mode: "cors"
-    });
-    const texto = await resp.text();
-    console.log("🗑️ Venta borrada del Sheet:", texto);
-  } catch(err) {
-    console.error("❌ Error borrando venta del Sheet:", err);
-    alert("⚠️ Stock devuelto localmente, pero no se pudo borrar del Sheet. Revisá la consola.");
-  }
+  encolarBorrarVentaEnSheet({
+    vendedor: venta.vendedor || state.usuarioActivo,
+    fecha: venta.fecha,
+    cliente: venta.cliente,
+    estilos: venta.estilos,
+    tipoLata: venta.tipoLata || "conEtiqueta",
+  });
+  encolarActualizarStockEnSheet(state.usuarioActivo);
 }
 
 /** Mismo valor en todos los flujos de cobro (botones y manual). */
@@ -285,10 +284,10 @@ function normalizarMetodoPago(metodoRaw) {
 }
 
 /**
- * Único camino de cobro en cartera: botones 💵/🏦 100·50 y cobro manual + select.
- * Todos terminan en la misma acción POST `registrarPago` con método de pago explícito.
+ * Cobro en cartera: actualiza estado local, encola envío al Sheet y marca ventas si salda.
+ * El POST a Google Sheets ocurre solo al pulsar «Guardar en Sheet» (ver guardarPagosPendientesEnSheet).
  */
-async function aplicarCobroCartera(index, montoPropuesto, metodoRaw) {
+function aplicarCobroCartera(index, montoPropuesto, metodoRaw) {
   const metodo = normalizarMetodoPago(metodoRaw);
   const cliente = state.clientesGlobales[index];
   if (!cliente) {
@@ -318,22 +317,21 @@ async function aplicarCobroCartera(index, montoPropuesto, metodoRaw) {
     marcaVentasLocalesCobradasSiSaldado(cliente.nombre, metodo);
   }
 
-  await enviarPagoAlSheet(cliente.nombre, monto, metodo);
-  await cargarDatosDesdeSheet();
-
-  if (deudaRestante < 1) {
-    marcaVentasLocalesCobradasSiSaldado(cliente.nombre, metodo);
-  }
+  encolarPagoParaSheet(cliente.nombre, monto, metodo);
 
   const metodoTexto = metodo === "efectivo" ? "💵 Efectivo" : "🏦 Transferencia";
-  alert(`✅ Cobrado $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto})`);
+  alert(
+    `✅ Registrado cobro $${monto.toLocaleString()} de ${cliente.nombre} (${metodoTexto}). ` +
+      `Historial global ya lo muestra como cobrado. ` +
+      `Para grabar ventas y cobros en Google Sheets usá «Guardar en Sheet».`
+  );
 
   guardarDatos();
   render();
 }
 
 /** Atajos 100% / 50%: verdes = efectivo, azules = transferencia (ver onclick en render). */
-async function registrarPagoCliente(index, metodo, porcentaje) {
+function registrarPagoCliente(index, metodo, porcentaje) {
   const cliente = state.clientesGlobales[index];
   if (!cliente) return;
   const deudaActual = cliente.deuda - cliente.pagado;
@@ -342,10 +340,10 @@ async function registrarPagoCliente(index, metodo, porcentaje) {
     return;
   }
   const monto = porcentaje === "100" ? deudaActual : deudaActual * 0.5;
-  await aplicarCobroCartera(index, monto, metodo);
+  aplicarCobroCartera(index, monto, metodo);
 }
 
-async function registrarPagoManual(index) {
+function registrarPagoManual(index) {
   const inputEl = document.getElementById(`pago-manual-${index}`);
   const metodoEl = document.getElementById(`pago-metodo-${index}`);
   if (!inputEl || !metodoEl) {
@@ -367,33 +365,7 @@ async function registrarPagoManual(index) {
     );
   }
   inputEl.value = "";
-  await aplicarCobroCartera(index, montoIngresado, metodo);
-}
-
-async function enviarPagoAlSheet(nombreCliente, monto, metodo) {
-  try {
-    const metodoNorm = normalizarMetodoPago(metodo);
-    const payload = {
-      accion: "registrarPago",
-      cliente: nombreCliente,
-      monto: monto,
-      metodo: metodoNorm,
-      metodoPago: metodoNorm,
-      fecha: new Date().toLocaleString('es-AR')
-    };
-    const resp = await fetch(URL_SCRIPT, {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { "Content-Type": "text/plain" },
-      mode: "cors"
-    });
-    const texto = await resp.text();
-    console.log("✅ Pago enviado al Sheet:", nombreCliente, monto, metodo, "Respuesta:", texto);
-    return texto;
-  } catch(err) {
-    console.error("❌ Error enviando pago al Sheet:", err);
-    throw err;
-  }
+  aplicarCobroCartera(index, montoIngresado, metodo);
 }
 
 function registrarCargaStock(usuario, estilo, cantidad, tipo) {
@@ -420,7 +392,6 @@ function registrarTransferenciaHistorial(desde, hacia, estilo, cantidad, tipo) {
 function guardarDatos() {
   const data = { usuarios: state.usuarios, clientes: state.clientesGlobales };
   localStorage.setItem("elProfetaData", JSON.stringify(data));
-  alert("¡Datos y Cartera de Clientes guardados!");
 }
 
 function cargarDatos() {
@@ -434,16 +405,40 @@ function cargarDatos() {
 }
 
 async function guardarEnSheets() {
-  const ventas = getVentasGenerales();
-  if (ventas.length === 0) {
-    alert("No hay ventas para guardar.");
+  let nVentas = 0;
+  let nPagos = 0;
+  let nStock = 0;
+  let nBorrar = 0;
+  try {
+    const vRaw = localStorage.getItem("ventasPendientes");
+    if (vRaw) nVentas = JSON.parse(vRaw).length;
+  } catch (e) {}
+  try {
+    const pRaw = localStorage.getItem("pagosPendientes");
+    if (pRaw) nPagos = JSON.parse(pRaw).length;
+  } catch (e) {}
+  try {
+    const sRaw = localStorage.getItem("stockPendienteUsuarios");
+    if (sRaw) nStock = JSON.parse(sRaw).length;
+  } catch (e) {}
+  try {
+    const bRaw = localStorage.getItem("borrarVentasPendientes");
+    if (bRaw) nBorrar = JSON.parse(bRaw).length;
+  } catch (e) {}
+
+  if (nVentas === 0 && nPagos === 0 && nStock === 0 && nBorrar === 0) {
+    alert("No hay nada pendiente de enviar al Sheet.");
     return;
   }
 
   try {
     await guardarVentasPendientesEnSheet();
-    alert("✅ Datos guardados en Google Sheets");
-  } catch(err) {
+    await guardarPagosPendientesEnSheet();
+    await guardarBorrarVentasPendienteEnSheet();
+    await guardarStockPendienteEnSheet();
+    await cargarDatosDesdeSheet();
+    alert("✅ Todo pendiente se envió a Google Sheets.");
+  } catch (err) {
     alert("❌ Error al guardar: " + err.message);
   }
 }
@@ -564,7 +559,9 @@ function renderVentasGeneral() {
   const dineroTransferencia = getTotalVentasPorMetodo("transferencia");
   const dineroTotal = getTotalVentasDinero();
   const totalProfeta = getGananciaTotalProfeta();
-  const todasLasVentas = getVentasGenerales().filter(v => (Number(v.totalCobrado) || 0) > 0);
+  const todasLasVentas = getVentasGenerales().filter(
+    v => (Number(v.totalCobrado) || 0) > 0 && ventaApareceEnHistorialGlobal(v)
+  );
   
   container.innerHTML = `
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
@@ -594,10 +591,10 @@ function renderVentasGeneral() {
 
     <div class="card" style="margin-top: 20px; border-left: 4px solid #7c3aed;">
       <h2>📋 Historial Global (${todasLasVentas.length} ventas)</h2>
-      <p style="color:#64748b; font-size:0.85em; margin:0 0 8px 0;">Incluye fiado pendiente; el método se completa al cobrar en Cartera.</p>
+      <p style="color:#64748b; font-size:0.85em; margin:0 0 8px 0;">Solo ventas ya cobradas (tras «Cobrar» en Cartera). La venta en cuenta aparece primero en Cartera de Deudores. Sheet: botón «Guardar en Sheet».</p>
       <div style="max-height: 300px; overflow-y: auto; margin-top: 10px;">
         ${todasLasVentas.length === 0
-          ? '<p style="color:gray;">No hay ventas registradas aún.</p>'
+          ? '<p style="color:gray;">No hay ventas cobradas aún. Registrá el cobro en Cartera de Deudores.</p>'
           : [...todasLasVentas].reverse().map(v => {
               const vendedor = v.vendedor || Object.keys(state.usuarios).find(u =>
                 state.usuarios[u].ventas.some(vv => vv === v)
@@ -991,7 +988,7 @@ function bindPanelEventos() {
         input.value = "";
       }
     });
-    await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
+    encolarActualizarStockEnSheet(state.usuarioActivo);
   };
 
   const btnAgregarStockSin = document.getElementById("btn-agregar-stock-sin-etiqueta");
@@ -1015,7 +1012,7 @@ function bindPanelEventos() {
         input.value = "";
       }
     });
-    await sincronizarStockUsuarioEnSheet(state.usuarioActivo);
+    encolarActualizarStockEnSheet(state.usuarioActivo);
   };
 
   const btnReset = document.getElementById("btn-reset-stock");
@@ -1030,6 +1027,7 @@ function bindPanelEventos() {
         });
         return p;
       });
+      encolarActualizarStockEnSheet(state.usuarioActivo);
     }
   };
 
@@ -1048,6 +1046,7 @@ function bindPanelEventos() {
       registrarCargaStock(state.usuarioActivo, estilo, -cantidad, 'conEtiqueta');
       registrarCargaStock(state.usuarioActivo, estilo, cantidad, 'sinEtiqueta');
       document.getElementById("transfer-cantidad").value = "";
+      encolarActualizarStockEnSheet(state.usuarioActivo);
     }
   };
 
@@ -1066,6 +1065,7 @@ function bindPanelEventos() {
       registrarCargaStock(state.usuarioActivo, estilo, -cantidad, 'sinEtiqueta');
       registrarCargaStock(state.usuarioActivo, estilo, cantidad, 'conEtiqueta');
       document.getElementById("transfer-cantidad").value = "";
+      encolarActualizarStockEnSheet(state.usuarioActivo);
     }
   };
 }
@@ -1137,6 +1137,8 @@ function renderTransferencia() {
         input.value = "";
       }
     });
+    encolarActualizarStockEnSheet(desde);
+    encolarActualizarStockEnSheet(hacia);
   }
 
   const btnCon = document.getElementById("btn-transferir-con");
