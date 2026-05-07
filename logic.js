@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzipbt8b8m8mZVWJQ8JM91r2qRbNFsvaFuBbPUk46LXF2467hKoqKnS5fCbaKfwRgH5KA/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyiM1XD0qi4KtkGcQmo55iF9SlbQjhCrrhsz4S5P0HITAUybytFWKG3848pl6s2L4msMg/exec";
 
 /** El Sheet guarda "sin"/"con"; la UI usa sinEtiqueta/conEtiqueta */
 function normalizarTipoLataDesdeSheet(raw) {
@@ -13,6 +13,69 @@ function normalizarTipoLataDesdeSheet(raw) {
 
 let clientesHistoricos = [];
 let ventasPendientes = [];
+let pagosPendientes = [];
+
+/** Cobros encolados hasta que el usuario pulse «Guardar en Sheet». */
+function encolarPagoParaSheet(nombreCliente, monto, metodo) {
+  if (!pagosPendientes.length) {
+    try {
+      const raw = localStorage.getItem("pagosPendientes");
+      if (raw) pagosPendientes = JSON.parse(raw);
+    } catch (e) {}
+  }
+  const metodoNorm =
+    String(metodo || "")
+      .toLowerCase()
+      .trim() === "transferencia"
+      ? "transferencia"
+      : "efectivo";
+  pagosPendientes.push({
+    cliente: nombreCliente,
+    monto: Number(monto) || 0,
+    metodo: metodoNorm,
+    metodoPago: metodoNorm,
+    fecha: new Date().toLocaleString("es-AR"),
+  });
+  localStorage.setItem("pagosPendientes", JSON.stringify(pagosPendientes));
+}
+
+async function guardarPagosPendientesEnSheet() {
+  if (!pagosPendientes.length) {
+    const raw = localStorage.getItem("pagosPendientes");
+    if (raw) pagosPendientes = JSON.parse(raw);
+  }
+  if (!pagosPendientes.length) {
+    return;
+  }
+
+  const cola = [...pagosPendientes];
+  pagosPendientes = [];
+  localStorage.removeItem("pagosPendientes");
+
+  for (const p of cola) {
+    try {
+      const payload = {
+        accion: "registrarPago",
+        cliente: p.cliente,
+        monto: p.monto,
+        metodo: p.metodo,
+        metodoPago: p.metodoPago || p.metodo,
+        fecha: p.fecha,
+      };
+      const resp = await fetch(URL_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "text/plain" },
+        mode: "cors",
+      });
+      await resp.text();
+    } catch (err) {
+      console.error("Error enviando pago al Sheet:", err);
+      pagosPendientes.push(p);
+      localStorage.setItem("pagosPendientes", JSON.stringify(pagosPendientes));
+    }
+  }
+}
 
 function modificarStockDirecto(usuario, estilo, cantidad) {
   setState((prev) => {
@@ -324,25 +387,91 @@ function agregarStockDirecto(estilo, conEtiqueta) {
   input.value = "";
 }
 
-// ✅ Envía el stock completo de un usuario al Sheet (carga de stock)
-async function sincronizarStockUsuarioEnSheet(usuario) {
+/** Marca que hay que subir el stock de ese usuario; se envía solo con «Guardar en Sheet». */
+function encolarActualizarStockEnSheet(usuario) {
+  if (!usuario) return;
+  let arr = [];
   try {
+    arr = JSON.parse(localStorage.getItem("stockPendienteUsuarios") || "[]");
+  } catch (e) {}
+  if (arr.indexOf(usuario) === -1) arr.push(usuario);
+  localStorage.setItem("stockPendienteUsuarios", JSON.stringify(arr));
+}
+
+function encolarBorrarVentaEnSheet(payload) {
+  let cola = [];
+  try {
+    cola = JSON.parse(localStorage.getItem("borrarVentasPendientes") || "[]");
+  } catch (e) {}
+  cola.push(payload);
+  localStorage.setItem("borrarVentasPendientes", JSON.stringify(cola));
+}
+
+async function guardarBorrarVentasPendienteEnSheet() {
+  let cola = [];
+  try {
+    cola = JSON.parse(localStorage.getItem("borrarVentasPendientes") || "[]");
+  } catch (e) {}
+  if (!cola.length) return;
+  localStorage.removeItem("borrarVentasPendientes");
+  const fallidos = [];
+  for (const data of cola) {
+    try {
+      const payload = Object.assign({ accion: "borrarVenta" }, data);
+      await fetch(URL_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "text/plain" },
+        mode: "cors"
+      });
+    } catch (err) {
+      console.error("Error borrando venta en Sheet:", err);
+      fallidos.push(data);
+    }
+  }
+  if (fallidos.length) {
+    let prev = [];
+    try {
+      prev = JSON.parse(localStorage.getItem("borrarVentasPendientes") || "[]");
+    } catch (e2) {}
+    localStorage.setItem("borrarVentasPendientes", JSON.stringify(prev.concat(fallidos)));
+  }
+}
+
+async function guardarStockPendienteEnSheet() {
+  let usuarios = [];
+  try {
+    usuarios = JSON.parse(localStorage.getItem("stockPendienteUsuarios") || "[]");
+  } catch (e) {}
+  if (!usuarios.length) return;
+  localStorage.removeItem("stockPendienteUsuarios");
+  const fallidos = [];
+  for (const usuario of usuarios) {
     const u = state.usuarios[usuario];
-    const payload = {
-      accion: "actualizarStock",
-      usuario: usuario,
-      stock: { ...u.stock },
-      stockSinEtiqueta: { ...(u.stockSinEtiqueta || {}) }
-    };
-    const resp = await fetch(URL_SCRIPT, {
-      method: "POST",
-      body: JSON.stringify(payload),
-      headers: { "Content-Type": "text/plain" },
-      mode: "cors"
-    });
-    const texto = await resp.text();
-    console.log("✅ Stock sincronizado para", usuario, ":", texto);
-  } catch (err) {
-    console.error("❌ Error sincronizando stock:", err);
+    if (!u) continue;
+    try {
+      const payload = {
+        accion: "actualizarStock",
+        usuario: usuario,
+        stock: { ...u.stock },
+        stockSinEtiqueta: { ...(u.stockSinEtiqueta || {}) }
+      };
+      await fetch(URL_SCRIPT, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "text/plain" },
+        mode: "cors"
+      });
+    } catch (err) {
+      console.error("Error subiendo stock:", err);
+      fallidos.push(usuario);
+    }
+  }
+  if (fallidos.length) {
+    let prev = [];
+    try {
+      prev = JSON.parse(localStorage.getItem("stockPendienteUsuarios") || "[]");
+    } catch (e3) {}
+    localStorage.setItem("stockPendienteUsuarios", JSON.stringify(prev.concat(fallidos)));
   }
 }
