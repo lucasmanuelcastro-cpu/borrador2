@@ -16,6 +16,7 @@ let state = {
   clientesGlobales: [],
   stockGeneral: {},
   popularidadSheet: {},
+  totalIngresadoSheet: null,
   usuarioActivo: "Julian",
   ventaActual: { BLONDE: "", "IRISH RED": "", STOUT: "", "SESSION IPA": "", "RED IPA": "", HONEY: "" },
   metodoPago: "efectivo",
@@ -579,8 +580,8 @@ function renderVentasGeneral() {
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
       <div class="card" style="border-left: 4px solid #3b82f6;">
         <h2>💰 Total Ingresado</h2>
-        <p class="big-number" style="color: #3b82f6;">$${dineroTotal.toLocaleString()}</p>
-        <small>Efectivo + Transferencia</small>
+        <p class="big-number" style="color: #3b82f6;">$${(state.totalIngresadoSheet != null ? state.totalIngresadoSheet : dineroTotal).toLocaleString()}</p>
+        <small>${state.totalIngresadoSheet != null ? '📊 Desde hoja Venta de Latas y Barriles (D1)' : 'Efectivo + Transferencia'}</small>
       </div>
       <div class="card">
         <h2>👑 Para El Profeta (Total)</h2>
