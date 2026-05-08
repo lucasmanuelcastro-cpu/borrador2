@@ -1,6 +1,6 @@
 // --- LÓGICA DE ESTADO Y SINCRONIZACIÓN EL PROFETA ---
 
-const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwd26meqwqJsYsjfL49LCkYC5QpjjtLJAJR6sASVppaacAuBAldvxaCjvHnDTMMaN0Glw/exec";
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyiM1XD0qi4KtkGcQmo55iF9SlbQjhCrrhsz4S5P0HITAUybytFWKG3848pl6s2L4msMg/exec";
 
 /** El Sheet guarda "sin"/"con"; la UI usa sinEtiqueta/conEtiqueta */
 function normalizarTipoLataDesdeSheet(raw) {
@@ -264,6 +264,11 @@ async function cargarDatosDesdeSheet() {
       // 1. POPULARIDAD
       if (datosCloud.popularidad) {
         prev.popularidadSheet = datosCloud.popularidad;
+      }
+
+      // 1b. TOTAL INGRESADO desde celda D1 del Sheet
+      if (datosCloud.totalIngresadoSheet !== undefined) {
+        prev.totalIngresadoSheet = Number(datosCloud.totalIngresadoSheet) || 0;
       }
 
       // 2. STOCK GENERAL
